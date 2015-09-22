@@ -40,7 +40,7 @@
 
 #hwx-about {
     padding-top: 40px;
-    padding-bottom: 38px;
+    padding-bottom: 35px;
     background-color: #1E1E1E;
     border-bottom: 4px solid #69be28;
     color: #fff;
@@ -56,7 +56,7 @@
 
 #hdf-version {
     float: left;
-    margin-top: 45px;
+    margin-top: 48px;
     margin-left: 44px;
     font-size: 23px;
 }
@@ -80,21 +80,21 @@
 }
 
 #nf-about-powered-by {
-    font-size: 18px;
+    font-size: 16px;
     color: #9FB9C6;
     font-weight: bold;
 }
 
 #nf-about-version {
     margin-top: 4px;
-    font-size: 16px;
+    font-size: 14px;
     color: #9FB9C6;
 }
 
 #nf-about-description {
     margin-top: 6px;
     width: 327px;
-    font-size: 16px;
+    font-size: 14px;
     color: #1E1E1E;
     line-height: 1.2;
 }

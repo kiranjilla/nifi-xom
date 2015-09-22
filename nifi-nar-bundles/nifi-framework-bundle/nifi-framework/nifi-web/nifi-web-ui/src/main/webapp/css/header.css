@@ -29,14 +29,11 @@
     background-color: #FFF;
     color: #000;
     font-size: 1.3em;
-    font-weight: bold;
     z-index: 99;
 }
 
 #hdf-name {
-    font-size: 23px;
-    color: rgb(30, 30, 30);
-    font-weight: 600;
+    font-size: 22px;
     position: absolute;
     left: 21px;
 }
@@ -677,8 +674,8 @@ div.bulletin-board-hover {
     width: 16px;
     height: 22px;
     position: absolute;
-    top: 5px;
-    right: 165px;
+    top: 3px;
+    right: 164px;
 }
 
 #header-links-container span.link {
