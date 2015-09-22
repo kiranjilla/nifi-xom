@@ -24,7 +24,7 @@
     overflow: visible;
     top: 17px;
     left: 0px;
-    height: 47px;
+    height: 69px;
     right: 0px;
     background-color: #FFF;
     color: #000;
@@ -33,12 +33,30 @@
     z-index: 99;
 }
 
+#hdf-name {
+    font-size: 23px;
+    color: rgb(30, 30, 30);
+    font-weight: 600;
+    position: absolute;
+    left: 21px;
+}
+
+#hwx-logo {
+    position: absolute;
+    left: 194px;
+    top: -12px;
+    width: 176px;
+    height: 47px;
+    background-image: url(../images/bgElephants.png);
+}
+
 #nf-logo {
     float: left;
     width: 61px;
     height: 90px;
     background-image: url(../images/bgNifiLogo.png);
     margin-top: -16px;
+    display: none;
 }
 
 #nf-logo-name {
@@ -47,6 +65,7 @@
     height: 47px;
     background-image: url(../images/bgNifiToolbar.png);
     z-index: 2;
+    display: none;
 }
 
 /* styles for the toolbox */
@@ -54,23 +73,29 @@
 #toolbox-container {
     position: absolute;
     bottom: 0px;
-    left: 135px;
     height: 34px;
     z-index: 3;
+}
+
+#toolbox-left-edge {
+    width: 14px;
+    float: left;
+    height: 34px;
+    background-color: #7098ad;
 }
 
 #toolbox-right-edge {
     float: left;
     background-image: url(../images/bgNifiToolbarEdge.png);
-    height: 47px;
+    height: 34px;
     width: 13px;
-    margin-top: -13px;
+    background-position: bottom;
 }
 
 #toolbox {
     float: left;
     height: 34px;
-    padding-top: 1px;
+    background-color: #7098ad;
 }
 
 div.toolbox-icon {
@@ -225,7 +250,7 @@ div.label-icon-drag {
 #toolbar {
     position: absolute;
     bottom: 0px;
-    left: 471px;
+    left: 350px;
     right: 0px;
     height: 27px;
     background-image: url(../images/toolbarBg.gif);
@@ -638,27 +663,50 @@ div.bulletin-board-hover {
     cursor: pointer;
 }
 
+#powered-by {
+    font-size: 12px;
+    position: absolute;
+    top: 9px;
+    right: 185px;
+    color: #9FB9C6;
+    font-weight: normal;
+}
+
+#powered-by-droplet {
+    background-image: url(../images/iconNiFiFlat.png);
+    width: 16px;
+    height: 22px;
+    position: absolute;
+    top: 5px;
+    right: 165px;
+}
+
+#header-links-container span.link {
+    font-size: 14px;
+    color: #1e1e1e;
+}
+
+#header-links-container span.link-over {
+    color: #e17000;
+    text-decoration: underline;
+}
+
 #header-links-container {
     position: absolute;
-    top: 1px;
-    right: 0px;
+    top: 3px;
+    right: 7px;
     z-index: 100;
 }
 
 #header-links-container li {
     float: left;
     display: block;
-    margin-right: 10px;
+    margin-right: 23px;
     padding: 4px;
     text-align: center;
     font-size: .8em;
     font-weight: normal;
     text-decoration: none;
-}
-
-#header-links-container span.header-link-over {
-    color: #264c58;
-    text-decoration: underline;
 }
 
 #has-pending-accounts {

@@ -16,9 +16,12 @@
 --%>
 <%@ page contentType="text/html" pageEncoding="UTF-8" session="false" %>
 <div id="header">
+    <div id="hdf-name">Hortonworks DataFlow</div>
+    <div id="hwx-logo"></div>
     <div id="nf-logo"></div>
     <div id="nf-logo-name"></div>
     <div id="toolbox-container">
+        <div id="toolbox-left-edge"></div>
         <div id="toolbox"></div>
         <div id="toolbox-right-edge"></div>
     </div>
@@ -42,13 +45,15 @@
             <input id="search-field" type="text"/>
         </div>
     </div>
+    <div id="powered-by">POWERED BY APACHE NIFI</div>
+    <div id="powered-by-droplet"></div>
     <div id="header-links-container">
         <ul>
             <li>
-                <span id="help-link" class="link">help</span>
+                <span id="help-link" class="link">Help</span>
             </li>
             <li>
-                <span id="about-link" class="link">about</span>
+                <span id="about-link" class="link">About</span>
             </li>
         </ul>
     </div>
