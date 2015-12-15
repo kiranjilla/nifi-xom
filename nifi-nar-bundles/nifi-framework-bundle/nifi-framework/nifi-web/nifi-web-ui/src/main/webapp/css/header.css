@@ -24,13 +24,27 @@
     overflow: visible;
     top: 17px;
     left: 0px;
-    height: 47px;
+    height: 69px;
     right: 0px;
     background-color: #FFF;
     color: #000;
     font-size: 1.3em;
-    font-weight: bold;
     z-index: 99;
+}
+
+#hdf-name {
+    font-size: 22px;
+    position: absolute;
+    left: 21px;
+}
+
+#hwx-logo {
+    position: absolute;
+    left: 194px;
+    top: -12px;
+    width: 176px;
+    height: 47px;
+    background-image: url(../images/bgElephants.png);
 }
 
 #nf-logo {
@@ -39,6 +53,7 @@
     height: 90px;
     background-image: url(../images/bgNifiLogo.png);
     margin-top: -16px;
+    display: none;
 }
 
 #nf-logo-name {
@@ -47,6 +62,7 @@
     height: 47px;
     background-image: url(../images/bgNifiToolbar.png);
     z-index: 2;
+    display: none;
 }
 
 /* styles for the toolbox */
@@ -54,23 +70,29 @@
 #toolbox-container {
     position: absolute;
     bottom: 0px;
-    left: 135px;
     height: 34px;
     z-index: 3;
+}
+
+#toolbox-left-edge {
+    width: 14px;
+    float: left;
+    height: 34px;
+    background-color: #7098ad;
 }
 
 #toolbox-right-edge {
     float: left;
     background-image: url(../images/bgNifiToolbarEdge.png);
-    height: 47px;
+    height: 34px;
     width: 13px;
-    margin-top: -13px;
+    background-position: bottom;
 }
 
 #toolbox {
     float: left;
     height: 34px;
-    padding-top: 1px;
+    background-color: #7098ad;
 }
 
 div.toolbox-icon {
@@ -225,13 +247,31 @@ div.label-icon-drag {
 #toolbar {
     position: absolute;
     bottom: 0px;
-    left: 471px;
+    left: 350px;
     right: 0px;
     height: 27px;
     background-image: url(../images/toolbarBg.gif);
     background-repeat: repeat-x;
     border-bottom: 1px solid #7098ad;
     z-index: 1;
+}
+
+#powered-by {
+    font-size: 12px;
+    color: #9FB9C6;
+    font-weight: normal;
+    float: left;
+    margin-top: -1px;
+    margin-right: 10px;
+}
+
+#powered-by-droplet {
+    background-image: url(../images/iconNiFiFlat.png);
+    width: 16px;
+    height: 22px;
+    float: left;
+    margin-top: -5px;
+    margin-right: 2px;
 }
 
 #toolbar-filler {
@@ -659,6 +699,7 @@ div.bulletin-board-hover {
 
 #header-links-container {
     position: absolute;
+
     right: 10px;
     z-index: 100;
 }
