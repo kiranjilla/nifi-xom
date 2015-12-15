@@ -93,6 +93,7 @@ ul.links li {
     font-size: 11px;
     font-weight: normal;
     text-decoration: none;
+    line-height: normal;
 }
 
 ul.links span.header-link-over {
