@@ -18,7 +18,7 @@
 <div id="nf-about">
     <div id="hwx-about">
         <div id="hwx-about-logo"></div>
-        <div id="hdf-version">DataFlow 1.1.0.0</div>
+        <div id="hdf-version">DataFlow 1.1.1.0</div>
         <div class="clear"></div>
     </div>
     <div id="nf-about-content">
