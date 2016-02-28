@@ -16,9 +16,12 @@
 --%>
 <%@ page contentType="text/html" pageEncoding="UTF-8" session="false" %>
 <div id="header">
+    <div id="hdf-name">Hortonworks DataFlow</div>
+    <div id="hwx-logo"></div>
     <div id="nf-logo"></div>
     <div id="nf-logo-name"></div>
     <div id="toolbox-container">
+        <div id="toolbox-left-edge"></div>
         <div id="toolbox"></div>
         <div id="toolbox-right-edge"></div>
     </div>
@@ -44,22 +47,27 @@
     </div>
     <div id="header-links-container">
         <ul class="links">
+            <li id="powered-by-container">
+                <div id="powered-by">POWERED BY APACHE NIFI</div>
+                <div id="powered-by-droplet"></div>
+                <div class="clear"></div>
+            </li>
             <li id="current-user-container">
                 <div id="anonymous-user-alert" class="hidden"></div>
                 <div id="current-user"></div>
                 <div class="clear"></div>
             </li>
             <li id="login-link-container">
-                <span id="login-link" class="link">login</span>
+                <span id="login-link" class="link">Login</span>
             </li>
             <li id="logout-link-container" style="display: none;">
-                <span id="logout-link" class="link">logout</span>
+                <span id="logout-link" class="link">Logout</span>
             </li>
             <li>
-                <span id="help-link" class="link">help</span>
+                <span id="help-link" class="link">Help</span>
             </li>
             <li>
-                <span id="about-link" class="link">about</span>
+                <span id="about-link" class="link">About</span>
             </li>
         </ul>
     </div>

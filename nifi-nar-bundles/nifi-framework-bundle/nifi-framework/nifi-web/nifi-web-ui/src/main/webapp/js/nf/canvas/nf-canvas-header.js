@@ -115,25 +115,19 @@ nf.CanvasHeader = (function () {
                 var aboutDetails = response.about;
                 // set the document title and the about title
                 document.title = aboutDetails.title;
-                $('#nf-version').text(aboutDetails.version);
+                $('#nf-about-version').text(aboutDetails.version);
             }).fail(nf.Common.handleAjaxError);
-
-            // configure the about dialog
-            $('#nf-about').modal({
-                overlayBackground: true,
-                buttons: [{
-                        buttonText: 'Ok',
-                        handler: {
-                            click: function () {
-                                $('#nf-about').modal('hide');
-                            }
-                        }
-                    }]
-            });
 
             // show about dialog
             $('#about-link').click(function () {
-                $('#nf-about').modal('show');
+                $('#nf-about-glasspane').show();
+                $('#nf-about').show().center();
+            });
+
+            // hide about dialog
+            $('#nf-about-ok').click(function () {
+                $('#nf-about').hide();
+                $('#nf-about-glasspane').hide();
             });
 
             // download the help documentation
