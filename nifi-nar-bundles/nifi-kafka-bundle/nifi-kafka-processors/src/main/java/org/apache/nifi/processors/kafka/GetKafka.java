@@ -180,6 +180,8 @@ public class GetKafka extends AbstractProcessor {
 
     private final AtomicBoolean consumerStreamsReady = new AtomicBoolean();
 
+    private volatile ExecutorService executor;
+
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         final PropertyDescriptor clientNameWithDefault = new PropertyDescriptor.Builder()
@@ -287,11 +289,17 @@ public class GetKafka extends AbstractProcessor {
     public void shutdownConsumer() {
         this.consumerStreamsReady.set(false);
         if (consumer != null) {
-            try {
-                consumer.commitOffsets();
-            } finally {
-                consumer.shutdown();
-            }
+            this.executor.execute(new Runnable() { // in case this blocks as well
+                @Override
+                public void run() {
+                    try {
+                        consumer.commitOffsets();
+                    } finally {
+                        consumer.shutdown();
+                    }
+                }
+            });
+            this.executor.shutdownNow();
         }
     }
 
@@ -311,7 +319,7 @@ public class GetKafka extends AbstractProcessor {
          */
         synchronized (this.consumerStreamsReady) {
             if (!this.consumerStreamsReady.get()) {
-                ExecutorService executor = Executors.newSingleThreadExecutor();
+                this.executor = Executors.newSingleThreadExecutor();
                 Future<Void> f = executor.submit(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
@@ -325,22 +333,40 @@ public class GetKafka extends AbstractProcessor {
                     this.consumerStreamsReady.set(false);
                     f.cancel(true);
                     Thread.currentThread().interrupt();
-                    getLogger().info("Interruted out while waiting to get connection", e);
+                    getLogger().info("Interrupted out while waiting to get connection", e);
                 } catch (ExecutionException e) {
                     throw new IllegalStateException(e);
                 } catch (TimeoutException e) {
                     this.consumerStreamsReady.set(false);
                     f.cancel(true);
                     getLogger().info("Timed out while waiting to get connection", e);
-                } finally {
-                    executor.shutdownNow();
                 }
             }
         }
         if (this.consumerStreamsReady.get()) {
-            ConsumerIterator<byte[], byte[]> iterator = this.getStreamIterator();
-            if (iterator != null) {
-                this.consumeFromKafka(context, session, iterator);
+            Future<Void> consumptionFuture = this.executor.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
+                    ConsumerIterator<byte[], byte[]> iterator = getStreamIterator();
+                    if (iterator != null) {
+                        consumeFromKafka(context, session, iterator);
+                    }
+                    return null;
+                }
+            });
+            try {
+                consumptionFuture.get(30000, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                this.consumerStreamsReady.set(false);
+                consumptionFuture.cancel(true);
+                Thread.currentThread().interrupt();
+                getLogger().info("Interrupted out while consuming messages", e);
+            } catch (ExecutionException e) {
+                throw new IllegalStateException(e);
+            } catch (TimeoutException e) {
+                this.consumerStreamsReady.set(false);
+                consumptionFuture.cancel(true);
+                getLogger().info("Timed out while consuming messages", e);
             }
         }
     }
