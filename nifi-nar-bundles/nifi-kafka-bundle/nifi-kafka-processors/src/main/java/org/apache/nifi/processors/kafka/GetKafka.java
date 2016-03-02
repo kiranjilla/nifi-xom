@@ -28,8 +28,14 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.nifi.annotation.behavior.DynamicProperty;
@@ -305,12 +311,37 @@ public class GetKafka extends AbstractProcessor {
          */
         synchronized (this.consumerStreamsReady) {
             if (!this.consumerStreamsReady.get()) {
-                this.createConsumers(context);
+                ExecutorService executor = Executors.newSingleThreadExecutor();
+                Future<Void> f = executor.submit(new Callable<Void>() {
+                    @Override
+                    public Void call() throws Exception {
+                        createConsumers(context);
+                        return null;
+                    }
+                });
+                try {
+                    f.get(30000, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    this.consumerStreamsReady.set(false);
+                    f.cancel(true);
+                    Thread.currentThread().interrupt();
+                    getLogger().info("Interruted out while waiting to get connection", e);
+                } catch (ExecutionException e) {
+                    throw new IllegalStateException(e);
+                } catch (TimeoutException e) {
+                    this.consumerStreamsReady.set(false);
+                    f.cancel(true);
+                    getLogger().info("Timed out while waiting to get connection", e);
+                } finally {
+                    executor.shutdownNow();
+                }
             }
         }
-        ConsumerIterator<byte[], byte[]> iterator = this.getStreamIterator();
-        if (iterator != null) {
-            this.consumeFromKafka(context, session, iterator);
+        if (this.consumerStreamsReady.get()) {
+            ConsumerIterator<byte[], byte[]> iterator = this.getStreamIterator();
+            if (iterator != null) {
+                this.consumeFromKafka(context, session, iterator);
+            }
         }
     }
 
