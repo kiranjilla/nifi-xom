@@ -182,6 +182,8 @@ public class GetKafka extends AbstractProcessor {
 
     private volatile ExecutorService executor;
 
+    private volatile long timeout;
+
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         final PropertyDescriptor clientNameWithDefault = new PropertyDescriptor.Builder()
@@ -224,7 +226,8 @@ public class GetKafka extends AbstractProcessor {
         props.setProperty("auto.commit.interval.ms", String.valueOf(context.getProperty(ZOOKEEPER_COMMIT_DELAY).asTimePeriod(TimeUnit.MILLISECONDS)));
         props.setProperty("auto.offset.reset", context.getProperty(AUTO_OFFSET_RESET).getValue());
         props.setProperty("zookeeper.connection.timeout.ms", context.getProperty(ZOOKEEPER_TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS).toString());
-        props.setProperty("socket.timeout.ms", context.getProperty(KAFKA_TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS).toString());
+        this.timeout = context.getProperty(KAFKA_TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS);
+        props.setProperty("socket.timeout.ms", String.valueOf(this.timeout));
 
         for (final Entry<PropertyDescriptor, String> entry : context.getProperties().entrySet()) {
             PropertyDescriptor descriptor = entry.getKey();
@@ -328,18 +331,18 @@ public class GetKafka extends AbstractProcessor {
                     }
                 });
                 try {
-                    f.get(30000, TimeUnit.MILLISECONDS);
+                    f.get(timeout * 2, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
                     this.consumerStreamsReady.set(false);
                     f.cancel(true);
                     Thread.currentThread().interrupt();
-                    getLogger().info("Interrupted out while waiting to get connection", e);
+                    getLogger().warn("Interrupted out while waiting to get connection", e);
                 } catch (ExecutionException e) {
                     throw new IllegalStateException(e);
                 } catch (TimeoutException e) {
                     this.consumerStreamsReady.set(false);
                     f.cancel(true);
-                    getLogger().info("Timed out while waiting to get connection", e);
+                    getLogger().warn("Timed out while waiting to get connection", e);
                 }
             }
         }
@@ -355,18 +358,18 @@ public class GetKafka extends AbstractProcessor {
                 }
             });
             try {
-                consumptionFuture.get(30000, TimeUnit.MILLISECONDS);
+                consumptionFuture.get(timeout * 2, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 this.consumerStreamsReady.set(false);
                 consumptionFuture.cancel(true);
                 Thread.currentThread().interrupt();
-                getLogger().info("Interrupted out while consuming messages", e);
+                getLogger().warn("Interrupted out while consuming messages", e);
             } catch (ExecutionException e) {
                 throw new IllegalStateException(e);
             } catch (TimeoutException e) {
                 this.consumerStreamsReady.set(false);
                 consumptionFuture.cancel(true);
-                getLogger().info("Timed out while consuming messages", e);
+                getLogger().warn("Timed out while consuming messages", e);
             }
         }
     }
