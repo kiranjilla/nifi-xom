@@ -302,7 +302,15 @@ public class GetKafka extends AbstractProcessor {
                     }
                 }
             });
-            this.executor.shutdownNow();
+            this.executor.shutdown();
+            try {
+                if (!this.executor.awaitTermination(10000, TimeUnit.MILLISECONDS)) {
+                    this.executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                this.executor.shutdownNow();
+            }
         }
     }
 
