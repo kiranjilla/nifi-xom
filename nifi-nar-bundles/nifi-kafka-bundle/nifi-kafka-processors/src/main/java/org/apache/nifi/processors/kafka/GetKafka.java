@@ -182,8 +182,6 @@ public class GetKafka extends AbstractProcessor {
 
     private volatile ExecutorService executor;
 
-    private volatile long timeout;
-
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         final PropertyDescriptor clientNameWithDefault = new PropertyDescriptor.Builder()
@@ -226,8 +224,8 @@ public class GetKafka extends AbstractProcessor {
         props.setProperty("auto.commit.interval.ms", String.valueOf(context.getProperty(ZOOKEEPER_COMMIT_DELAY).asTimePeriod(TimeUnit.MILLISECONDS)));
         props.setProperty("auto.offset.reset", context.getProperty(AUTO_OFFSET_RESET).getValue());
         props.setProperty("zookeeper.connection.timeout.ms", context.getProperty(ZOOKEEPER_TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS).toString());
-        this.timeout = context.getProperty(KAFKA_TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS);
-        props.setProperty("socket.timeout.ms", String.valueOf(this.timeout));
+        props.setProperty("socket.timeout.ms",
+                context.getProperty(KAFKA_TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS).toString());
 
         for (final Entry<PropertyDescriptor, String> entry : context.getProperties().entrySet()) {
             PropertyDescriptor descriptor = entry.getKey();
@@ -324,7 +322,7 @@ public class GetKafka extends AbstractProcessor {
 
     @Override
     public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
-        final long deadlockTimeout = this.timeout * 2;
+        final long deadlockTimeout = context.getProperty(KAFKA_TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS) * 2;
         /*
          * Will ensure that consumer streams are ready upon the first invocation
          * of onTrigger. Will be reset to 'false' in the event of exception
