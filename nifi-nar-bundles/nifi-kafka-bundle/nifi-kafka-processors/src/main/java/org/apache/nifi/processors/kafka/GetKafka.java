@@ -324,6 +324,7 @@ public class GetKafka extends AbstractProcessor {
 
     @Override
     public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
+        final long deadlockTimeout = this.timeout * 2;
         /*
          * Will ensure that consumer streams are ready upon the first invocation
          * of onTrigger. Will be reset to 'false' in the event of exception
@@ -339,7 +340,7 @@ public class GetKafka extends AbstractProcessor {
                     }
                 });
                 try {
-                    f.get(timeout * 2, TimeUnit.MILLISECONDS);
+                    f.get(deadlockTimeout, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
                     this.consumerStreamsReady.set(false);
                     f.cancel(true);
@@ -350,7 +351,7 @@ public class GetKafka extends AbstractProcessor {
                 } catch (TimeoutException e) {
                     this.consumerStreamsReady.set(false);
                     f.cancel(true);
-                    getLogger().warn("Timed out while waiting to get connection", e);
+                    getLogger().warn("Timed out after " + deadlockTimeout + " milliseconds while waiting to get connection", e);
                 }
             }
         }
@@ -366,7 +367,7 @@ public class GetKafka extends AbstractProcessor {
                 }
             });
             try {
-                consumptionFuture.get(timeout * 2, TimeUnit.MILLISECONDS);
+                consumptionFuture.get(deadlockTimeout, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 this.consumerStreamsReady.set(false);
                 consumptionFuture.cancel(true);
@@ -377,7 +378,7 @@ public class GetKafka extends AbstractProcessor {
             } catch (TimeoutException e) {
                 this.consumerStreamsReady.set(false);
                 consumptionFuture.cancel(true);
-                getLogger().warn("Timed out while consuming messages", e);
+                getLogger().warn("Timed out after " + deadlockTimeout + " milliseconds while consuming messages", e);
             }
         }
     }
