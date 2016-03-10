@@ -30,10 +30,16 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
@@ -257,6 +263,8 @@ public class PutKafka extends AbstractSessionFactoryProcessor {
 
     private volatile Producer<byte[], byte[]> producer;
 
+    private volatile ExecutorService executor;
+
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         final PropertyDescriptor clientName = new PropertyDescriptor.Builder()
@@ -317,6 +325,17 @@ public class PutKafka extends AbstractSessionFactoryProcessor {
 
         for (final FlowFileMessageBatch batch : activeBatches) {
             batch.cancelOrComplete();
+        }
+        if (this.executor != null) {
+            this.executor.shutdown();
+            try {
+                if (!this.executor.awaitTermination(30000, TimeUnit.MILLISECONDS)) {
+                    this.executor.shutdownNow();
+                    getLogger().warn("Executor did not stop in 30 sec. Terminated.");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -425,6 +444,35 @@ public class PutKafka extends AbstractSessionFactoryProcessor {
 
     @Override
     public void onTrigger(final ProcessContext context, final ProcessSessionFactory sessionFactory) throws ProcessException {
+        final long deadlockTimeout = context.getProperty(TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS) * 2;
+        synchronized (this) {
+            if (executor == null) {
+                executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            }
+        }
+        Future<Void> consumptionFuture = this.executor.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                doOnTrigger(context, sessionFactory);
+                return null;
+            }
+        });
+        try {
+            consumptionFuture.get(deadlockTimeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            consumptionFuture.cancel(true);
+            Thread.currentThread().interrupt();
+            getLogger().warn("Interrupted out while sending messages", e);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException(e);
+        } catch (TimeoutException e) {
+            consumptionFuture.cancel(true);
+            getLogger().warn("Timed out after " + deadlockTimeout + " milliseconds while sending messages", e);
+        }
+    }
+
+    public void doOnTrigger(final ProcessContext context, final ProcessSessionFactory sessionFactory)
+            throws ProcessException {
         FlowFileMessageBatch batch;
         while ((batch = completeBatches.poll()) != null) {
             batch.completeSession();
