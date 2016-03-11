@@ -333,6 +333,7 @@ public class PutKafka extends AbstractSessionFactoryProcessor {
                     this.executor.shutdownNow();
                     getLogger().warn("Executor did not stop in 30 sec. Terminated.");
                 }
+                this.executor = null;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -446,7 +447,7 @@ public class PutKafka extends AbstractSessionFactoryProcessor {
     public void onTrigger(final ProcessContext context, final ProcessSessionFactory sessionFactory) throws ProcessException {
         final long deadlockTimeout = context.getProperty(TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS) * 2;
         synchronized (this) {
-            if (executor == null) {
+            if (executor == null || executor.isShutdown()) {
                 executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
             }
         }
