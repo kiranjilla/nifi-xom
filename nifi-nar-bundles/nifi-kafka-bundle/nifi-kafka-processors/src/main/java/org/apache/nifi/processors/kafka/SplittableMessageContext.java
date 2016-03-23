@@ -16,8 +16,7 @@
  */
 package org.apache.nifi.processors.kafka;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.BitSet;
 
 import org.apache.nifi.flowfile.FlowFile;
 
@@ -34,7 +33,7 @@ final class SplittableMessageContext {
 
     private final byte[] keyBytes;
 
-    private volatile List<Integer> failedSegments;
+    private volatile BitSet failedSegments;
 
     /**
      * @param topicName
@@ -61,25 +60,28 @@ final class SplittableMessageContext {
     }
 
     /**
-     * Sets the comma delimited string of integers representing failed segment
-     * indexes.
+     *
      */
-    void setFailedSegmentsAsString(String failedSegmentsString) {
-        if (failedSegmentsString != null) {
-            List<Integer> failedSegments = new ArrayList<>();
-            for (String segStrIndex : failedSegmentsString.split(",")) {
-                failedSegments.add(Integer.parseInt(segStrIndex));
-            }
-            this.failedSegments = failedSegments;
+    void setFailedSegments(int... failedSegments) {
+        this.failedSegments = new BitSet();
+        for (int failedSegment : failedSegments) {
+            this.failedSegments.set(failedSegment);
         }
+    }
+
+    /**
+     *
+     */
+    void setFailedSegmentsAsByteArray(byte[] failedSegments) {
+        this.failedSegments = BitSet.valueOf(failedSegments);
     }
 
     /**
      * Returns the list of integers representing the segments (chunks) of the
      * delimited content stream that had failed to be sent to Kafka topic.
      */
-    List<Integer> getFailedSegments() {
-        return failedSegments;
+    BitSet getFailedSegments() {
+        return this.failedSegments;
     }
 
     /**

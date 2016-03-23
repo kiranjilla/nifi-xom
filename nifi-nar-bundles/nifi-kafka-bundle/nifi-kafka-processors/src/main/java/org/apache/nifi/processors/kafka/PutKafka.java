@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -71,7 +72,7 @@ public class PutKafka extends AbstractProcessor {
 
     private static final String BROKER_REGEX = SINGLE_BROKER_REGEX + "(?:,\\s*" + SINGLE_BROKER_REGEX + ")*";
 
-    public static final AllowableValue DELIVERY_REPLICATED = new AllowableValue("-1", "Guarantee Replicated Delivery",
+    public static final AllowableValue DELIVERY_REPLICATED = new AllowableValue("all", "Guarantee Replicated Delivery",
             "FlowFile will be routed to"
                     + " failure unless the message is replicated to the appropriate number of Kafka Nodes according to the Topic configuration");
     public static final AllowableValue DELIVERY_ONE_NODE = new AllowableValue("1", "Guarantee Single Node Delivery",
@@ -232,6 +233,8 @@ public class PutKafka extends AbstractProcessor {
             .description("Any FlowFile that cannot be sent to Kafka will be routed to this Relationship")
             .build();
 
+    protected static final String ATTR_PROC_ID = "PROC_ID";
+
     protected static final String ATTR_FAILED_SEGMENTS = "FS";
 
     protected static final String ATTR_TOPIC = "TOPIC";
@@ -287,8 +290,8 @@ public class PutKafka extends AbstractProcessor {
         FlowFile flowFile = session.get();
         if (flowFile != null) {
             final SplittableMessageContext messageContext = this.buildMessageContext(flowFile, context, session);
-            final Object partitionKey = this.determinePartition(messageContext, context, flowFile);
-            final AtomicReference<List<Integer>> failedSegmentsRef = new AtomicReference<List<Integer>>();
+            final Integer partitionKey = this.determinePartition(messageContext, context, flowFile);
+            final AtomicReference<BitSet> failedSegmentsRef = new AtomicReference<BitSet>();
             session.read(flowFile, new InputStreamCallback() {
                 @Override
                 public void process(InputStream contentStream) throws IOException {
@@ -304,6 +307,7 @@ public class PutKafka extends AbstractProcessor {
                 flowFile = session.putAllAttributes(flowFile, this.buildFailedFlowFileAttributes(failedSegmentsRef.get(), messageContext));
                 session.transfer(flowFile, REL_FAILURE);
             }
+
         } else {
             context.yield();
         }
@@ -359,6 +363,7 @@ public class PutKafka extends AbstractProcessor {
             flowFile = session.removeAttribute(flowFile, ATTR_KEY);
             flowFile = session.removeAttribute(flowFile, ATTR_TOPIC);
             flowFile = session.removeAttribute(flowFile, ATTR_DELIMITER);
+            flowFile = session.removeAttribute(flowFile, ATTR_PROC_ID);
         }
         return flowFile;
     }
@@ -366,11 +371,12 @@ public class PutKafka extends AbstractProcessor {
     /**
      *
      */
-   private Object determinePartition(SplittableMessageContext messageContext, ProcessContext context, FlowFile flowFile) {
+    private Integer determinePartition(SplittableMessageContext messageContext, ProcessContext context,
+            FlowFile flowFile) {
        String partitionStrategy = context.getProperty(PARTITION_STRATEGY).getValue();
-       String partitionValue = null;
+        Integer partitionValue = null;
        if (partitionStrategy.equalsIgnoreCase(USER_DEFINED_PARTITIONING.getValue())) {
-           partitionValue = context.getProperty(PARTITION).evaluateAttributeExpressions(flowFile).getValue();
+            partitionValue = Integer.parseInt(context.getProperty(PARTITION).evaluateAttributeExpressions(flowFile).getValue());
        }
        return partitionValue;
    }
@@ -378,17 +384,10 @@ public class PutKafka extends AbstractProcessor {
     /**
      *
      */
-    private Map<String, String> buildFailedFlowFileAttributes(List<Integer> failedSegments,
-            SplittableMessageContext messageContext) {
-        StringBuffer buffer = new StringBuffer();
-        String delimiter = "";
-        for (Integer failedSegment : failedSegments) {
-            buffer.append(delimiter);
-            buffer.append(String.valueOf(failedSegment));
-            delimiter = ",";
-        }
+    private Map<String, String> buildFailedFlowFileAttributes(BitSet failedSegments, SplittableMessageContext messageContext) {
         Map<String, String> attributes = new HashMap<>();
-        attributes.put(ATTR_FAILED_SEGMENTS, buffer.toString());
+        attributes.put(ATTR_PROC_ID, this.getIdentifier());
+        attributes.put(ATTR_FAILED_SEGMENTS, new String(failedSegments.toByteArray(), StandardCharsets.UTF_8));
         attributes.put(ATTR_TOPIC, messageContext.getTopicName());
         attributes.put(ATTR_KEY, messageContext.getKeyBytesAsString());
         attributes.put(ATTR_DELIMITER, messageContext.getDelimiterPattern());
@@ -398,25 +397,27 @@ public class PutKafka extends AbstractProcessor {
     /**
      *
      */
-    private SplittableMessageContext buildMessageContext(FlowFile flowFile, ProcessContext context,
-            ProcessSession session) {
+    private SplittableMessageContext buildMessageContext(FlowFile flowFile, ProcessContext context, ProcessSession session) {
         String topicName;
         byte[] key;
         String delimiterPattern;
 
         String failedSegmentsString = flowFile.getAttribute(ATTR_FAILED_SEGMENTS);
-        if (failedSegmentsString != null) {
+        if (flowFile.getAttribute(ATTR_PROC_ID) != null && flowFile.getAttribute(ATTR_PROC_ID).equals(this.getIdentifier()) && failedSegmentsString != null) {
             topicName = flowFile.getAttribute(ATTR_TOPIC);
             key = flowFile.getAttribute(ATTR_KEY).getBytes();
             delimiterPattern = flowFile.getAttribute(ATTR_DELIMITER);
         } else {
+            failedSegmentsString = null;
             topicName = context.getProperty(TOPIC).evaluateAttributeExpressions(flowFile).getValue();
             String _key = context.getProperty(KEY).evaluateAttributeExpressions(flowFile).getValue();
             key = _key == null ? null : _key.getBytes(StandardCharsets.UTF_8);
             delimiterPattern = context.getProperty(MESSAGE_DELIMITER).evaluateAttributeExpressions(flowFile).getValue();
         }
         SplittableMessageContext messageContext = new SplittableMessageContext(topicName, key, delimiterPattern);
-        messageContext.setFailedSegmentsAsString(failedSegmentsString);
+        if (failedSegmentsString != null) {
+            messageContext.setFailedSegmentsAsByteArray(failedSegmentsString.getBytes());
+        }
         return messageContext;
     }
 
@@ -426,14 +427,19 @@ public class PutKafka extends AbstractProcessor {
     private Properties buildKafkaConfigProperties(final ProcessContext context) {
         Properties properties = new Properties();
         String timeout = String.valueOf(context.getProperty(TIMEOUT).asTimePeriod(TimeUnit.MILLISECONDS).longValue());
-        properties.setProperty("request.timeout.ms", timeout);
-        properties.setProperty("topic.metadata.refresh.interval.ms", timeout);
-        properties.setProperty("metadata.broker.list", context.getProperty(SEED_BROKERS).getValue());
-        properties.setProperty("request.required.acks", context.getProperty(DELIVERY_GUARANTEE).getValue());
+        properties.setProperty("bootstrap.servers", context.getProperty(SEED_BROKERS).getValue());
+        properties.setProperty("acks", context.getProperty(DELIVERY_GUARANTEE).getValue());
+        properties.setProperty("buffer.memory", String.valueOf(context.getProperty(MAX_BUFFER_SIZE).asDataSize(DataUnit.B).longValue()));
+        properties.setProperty("compression.type", context.getProperty(COMPRESSION_CODEC).getValue());
+        properties.setProperty("batch.size", context.getProperty(BATCH_NUM_MESSAGES).getValue());
         properties.setProperty("client.id", context.getProperty(CLIENT_NAME).getValue());
-        properties.setProperty("batch.num.messages", context.getProperty(BATCH_NUM_MESSAGES).getValue());
-        properties.setProperty("send.buffer.bytes", String.valueOf(context.getProperty(MAX_BUFFER_SIZE).asDataSize(DataUnit.B).longValue()));
-        properties.setProperty("compression.codec", context.getProperty(COMPRESSION_CODEC).getValue());
+        Long queueBufferingMillis = context.getProperty(QUEUE_BUFFERING_MAX).asTimePeriod(TimeUnit.MILLISECONDS);
+        if (queueBufferingMillis != null) {
+            properties.setProperty("linger.ms", String.valueOf(queueBufferingMillis));
+        }
+        properties.setProperty("max.request.size", String.valueOf(context.getProperty(MAX_RECORD_SIZE).asDataSize(DataUnit.B).longValue()));
+        properties.setProperty("timeout.ms", timeout);
+        properties.setProperty("metadata.fetch.timeout.ms", timeout);
 
         String partitionStrategy = context.getProperty(PARTITION_STRATEGY).getValue();
         String partitionerClass = null;
@@ -441,18 +447,8 @@ public class PutKafka extends AbstractProcessor {
             partitionerClass = Partitioners.RoundRobinPartitioner.class.getName();
         } else if (partitionStrategy.equalsIgnoreCase(RANDOM_PARTITIONING.getValue())) {
             partitionerClass = DefaultPartitioner.class.getName();
-        } else {
-            throw new UnsupportedOperationException("Please implement");
         }
         properties.setProperty("partitioner.class", partitionerClass);
-
-        // NOTE!!! Can't find any mentions or documentation for the following
-        // properties
-        properties.setProperty("max.request.size", String.valueOf(context.getProperty(MAX_RECORD_SIZE).asDataSize(DataUnit.B).longValue()));
-        Long queueBufferingMillis = context.getProperty(QUEUE_BUFFERING_MAX).asTimePeriod(TimeUnit.MILLISECONDS);
-        if (queueBufferingMillis != null) {
-            properties.setProperty("linger.ms", String.valueOf(queueBufferingMillis));
-        }
 
         // Set Dynamic Properties
         for (final Entry<PropertyDescriptor, String> entry : context.getProperties().entrySet()) {

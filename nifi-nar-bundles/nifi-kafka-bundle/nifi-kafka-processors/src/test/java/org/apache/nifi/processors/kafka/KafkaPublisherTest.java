@@ -48,6 +48,8 @@ public class KafkaPublisherTest {
             + "The only source of knowledge is experience.\n"
             + "Only two things are infinite, the universe and human stupidity, and I'm not sure about the former.\n";
 
+    private static final String sampleData2 = "foo|bar|baz";
+
     private static EmbeddedKafka kafkaLocal;
 
     private static EmbeddedKafkaProducerHelper producerHelper;
@@ -92,7 +94,7 @@ public class KafkaPublisherTest {
     @Test
     public void validateSuccessfulSendAsDelimited() throws Exception {
         InputStream fis = new ByteArrayInputStream(sampleData.getBytes(StandardCharsets.UTF_8));
-        String topicName = "validateSuccessfulSendAsPartitioned";
+        String topicName = "validateSuccessfulSendAsDelimited";
 
         Properties kafkaProperties = this.buildProducerProperties();
         KafkaPublisher publisher = new KafkaPublisher(kafkaProperties);
@@ -116,6 +118,31 @@ public class KafkaPublisherTest {
     }
 
     @Test
+    public void validateSuccessfulSendAsDelimited2() throws Exception {
+        InputStream fis = new ByteArrayInputStream(sampleData2.getBytes(StandardCharsets.UTF_8));
+        String topicName = "validateSuccessfulSendAsDelimited2";
+
+        Properties kafkaProperties = this.buildProducerProperties();
+        KafkaPublisher publisher = new KafkaPublisher(kafkaProperties);
+
+        SplittableMessageContext messageContext = new SplittableMessageContext(topicName, null, "|");
+
+        publisher.publish(messageContext, fis, null);
+        publisher.close();
+
+        ConsumerIterator<byte[], byte[]> iter = this.buildConsumer(topicName);
+        assertNotNull(iter.next());
+        assertNotNull(iter.next());
+        assertNotNull(iter.next());
+        try {
+            iter.next();
+            fail();
+        } catch (ConsumerTimeoutException e) {
+            // that's OK since this is the Kafka mechanism to unblock
+        }
+    }
+
+    @Test
     public void validateSuccessfulReSendOfFailedSegments() throws Exception {
         InputStream fis = new ByteArrayInputStream(sampleData.getBytes(StandardCharsets.UTF_8));
         String topicName = "validateSuccessfulReSendOfFailedSegments";
@@ -125,7 +152,7 @@ public class KafkaPublisherTest {
         KafkaPublisher publisher = new KafkaPublisher(kafkaProperties);
 
         SplittableMessageContext messageContext = new SplittableMessageContext(topicName, null, "\n");
-        messageContext.setFailedSegmentsAsString("1,3");
+        messageContext.setFailedSegments(1, 3);
 
         publisher.publish(messageContext, fis, null);
         publisher.close();
@@ -145,19 +172,20 @@ public class KafkaPublisherTest {
 
     private Properties buildProducerProperties() {
         Properties kafkaProperties = new Properties();
-        kafkaProperties.setProperty("metadata.broker.list", "0.0.0.0:" + kafkaLocal.getKafkaPort());
+        kafkaProperties.setProperty("bootstrap.servers", "0.0.0.0:" + kafkaLocal.getKafkaPort());
         kafkaProperties.setProperty("serializer.class", "kafka.serializer.DefaultEncoder");
-        kafkaProperties.setProperty("request.required.acks", "1");
+        kafkaProperties.setProperty("acks", "1");
         kafkaProperties.put("auto.create.topics.enable", "true");
-        kafkaProperties.setProperty("partitioner.class",
-                "org.apache.nifi.processors.kafka.Partitioners$RoundRobinPartitioner");
-        kafkaProperties.setProperty("partition.assignment.strategy", "roundrobin");
+        kafkaProperties.setProperty("partitioner.class", "org.apache.nifi.processors.kafka.Partitioners$RoundRobinPartitioner");
+        kafkaProperties.setProperty("timeout.ms", "5000");
+        // kafkaProperties.setProperty("partition.assignment.strategy",
+        // "roundrobin");
         return kafkaProperties;
     }
 
     private ConsumerIterator<byte[], byte[]> buildConsumer(String topic) {
         Properties props = new Properties();
-        props.put("zookeeper.connect", "0.0.0.0:" + kafkaLocal.getZookeeperPort());
+        props.put("zookeeper.connect", "localhost:" + kafkaLocal.getZookeeperPort());
         props.put("group.id", "test");
         props.put("consumer.timeout.ms", "5000");
         props.put("auto.offset.reset", "smallest");

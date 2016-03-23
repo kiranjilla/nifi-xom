@@ -18,20 +18,28 @@ package org.apache.nifi.processors.kafka;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.logging.ProcessorLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.Partitioner;
-import kafka.producer.ProducerConfig;
 
 /**
  * Wrapper over {@link KafkaProducer} to assist {@link PutKafka} processor with
@@ -41,7 +49,11 @@ public class KafkaPublisher implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(KafkaPublisher.class);
 
-    private final Producer<byte[], byte[]> producer;
+    private final KafkaProducer<byte[], byte[]> producer;
+
+    private final Partitioner partitioner;
+
+    private final long ackWaitTime;
 
     private ProcessorLog processLog;
 
@@ -51,8 +63,19 @@ public class KafkaPublisher implements AutoCloseable {
      * configuration properties.
      */
     KafkaPublisher(Properties kafkaProperties) {
-        ProducerConfig producerConfig = new ProducerConfig(kafkaProperties);
-        this.producer = new Producer<>(producerConfig);
+        kafkaProperties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        kafkaProperties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        this.producer = new KafkaProducer<byte[], byte[]>(kafkaProperties);
+        this.ackWaitTime = Long.parseLong(kafkaProperties.getProperty(ProducerConfig.TIMEOUT_CONFIG)) * 2;
+        try {
+            if (kafkaProperties.containsKey("partitioner.class")){
+                this.partitioner = (Partitioner) Class.forName(kafkaProperties.getProperty("partitioner.class")).newInstance();
+            } else {
+                this.partitioner = null;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create partitioner", e);
+        }
     }
 
     /**
@@ -91,41 +114,74 @@ public class KafkaPublisher implements AutoCloseable {
      *            the value of the partition key. Only relevant is user wishes
      *            to provide a custom partition key instead of relying on
      *            variety of provided {@link Partitioner}(s)
-     * @return The list containing the failed segment indexes for messages that
+     * @return The set containing the failed segment indexes for messages that
      *         failed to be sent to Kafka.
      */
-    List<Integer> publish(SplittableMessageContext messageContext, InputStream contentStream, Object partitionKey) {
-        List<Integer> prevFailedSegmentIndexes = messageContext.getFailedSegments();
-        List<Integer> failedSegments = new ArrayList<>();
+    BitSet publish(SplittableMessageContext messageContext, InputStream contentStream, Integer partitionKey) {
+        List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
+        BitSet prevFailedSegmentIndexes = messageContext.getFailedSegments();
         int segmentCounter = 0;
         try (Scanner scanner = new Scanner(contentStream)) {
-            scanner.useDelimiter(messageContext.getDelimiterPattern());
+            scanner.useDelimiter(Pattern.quote(messageContext.getDelimiterPattern()));
             while (scanner.hasNext()) {
-                //TODO Improve content InputStream so it's skip supported so one can zoom straight to the correct segment
                 byte[] content = scanner.next().getBytes();
                 if (content.length > 0){
                     byte[] key = messageContext.getKeyBytes();
-                    partitionKey = partitionKey == null ? key : partitionKey;// the whole thing may still be null
                     String topicName = messageContext.getTopicName();
-                    if (prevFailedSegmentIndexes != null) {
-                        // send only what has failed
-                        if (prevFailedSegmentIndexes.contains(segmentCounter)) {
-                            KeyedMessage<byte[], byte[]> message = new KeyedMessage<byte[], byte[]>(topicName, key, partitionKey, content);
-                            if (!this.toKafka(message)) {
-                                failedSegments.add(segmentCounter);
-                            }
-                        }
-                    } else {
-                        KeyedMessage<byte[], byte[]> message = new KeyedMessage<byte[], byte[]>(topicName, key, partitionKey, content);
-                        if (!this.toKafka(message)) {
-                            failedSegments.add(segmentCounter);
-                        }
+                    if (partitionKey == null && key != null) {
+                        partitionKey = this.getPartition(key, topicName);
+                    }
+                    if (prevFailedSegmentIndexes == null || prevFailedSegmentIndexes.get(segmentCounter)) {
+                        ProducerRecord<byte[], byte[]> message = new ProducerRecord<byte[], byte[]>(topicName, partitionKey, key, content);
+                        sendFutures.add(this.toKafka(message));
                     }
                 }
                 segmentCounter++;
             }
         }
+        return this.processAcks(sendFutures);
+    }
+
+    /**
+     *
+     */
+    private BitSet processAcks(List<Future<RecordMetadata>> sendFutures) {
+        int segmentCounter = 0;
+        BitSet failedSegments = new BitSet();
+        for (Future<RecordMetadata> future : sendFutures) {
+            try {
+                future.get(this.ackWaitTime, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                failedSegments.set(segmentCounter);
+                Thread.currentThread().interrupt();
+                logger.warn("Interrupted while waiting for acks from Kafka");
+                if (this.processLog != null) {
+                    this.processLog.warn("Interrupted while waiting for acks from Kafka");
+                }
+            } catch (ExecutionException e) {
+                failedSegments.set(segmentCounter);
+                logger.error("Failed while waiting for acks from Kafka", e);
+                if (this.processLog != null) {
+                    this.processLog.error("Failed while waiting for acks from Kafka", e);
+                }
+            } catch (TimeoutException e) {
+                failedSegments.set(segmentCounter);
+                logger.warn("Timed out while waiting for acks from Kafka");
+                if (this.processLog != null) {
+                    this.processLog.warn("Timed out while waiting for acks from Kafka");
+                }
+            }
+            segmentCounter++;
+        }
         return failedSegments;
+    }
+
+    /**
+     *
+     */
+    private int getPartition(Object key, String topicName) {
+        int partSize = this.producer.partitionsFor(topicName).size();
+        return this.partitioner.partition(key, partSize);
     }
 
     /**
@@ -137,23 +193,13 @@ public class KafkaPublisher implements AutoCloseable {
     }
 
     /**
-     * Sends the provided {@link KeyedMessage} to Kafka returning true if
-     * message was sent successfully and false otherwise.
+     * Sends the provided {@link KeyedMessage} to Kafka async returning
+     * {@link Future}
      */
-    private boolean toKafka(KeyedMessage<byte[], byte[]> message) {
-        boolean sent = false;
-        try {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Publishing message to '" + message.topic() + "' topic.");
-            }
-            this.producer.send(message);
-            sent = true;
-        } catch (Exception e) {
-            logger.error("Failed to send message to Kafka", e);
-            if (processLog != null) {
-                processLog.error("Failed to send message to Kafka", e);
-            }
+    private Future<RecordMetadata> toKafka(ProducerRecord<byte[], byte[]> message) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Publishing message to '" + message.topic() + "' topic.");
         }
-        return sent;
+        return this.producer.send(message);
     }
 }

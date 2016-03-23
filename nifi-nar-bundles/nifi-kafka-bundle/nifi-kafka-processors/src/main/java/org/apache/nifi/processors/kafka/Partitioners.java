@@ -19,7 +19,6 @@ package org.apache.nifi.processors.kafka;
 import java.util.Random;
 
 import kafka.producer.Partitioner;
-import kafka.utils.VerifiableProperties;
 
 /**
  * Collection of implementation of common Kafka {@link Partitioner}s.
@@ -34,9 +33,6 @@ final public class Partitioners {
      */
     public static class RoundRobinPartitioner implements Partitioner {
         private volatile int index;
-
-        public RoundRobinPartitioner(VerifiableProperties props) {
-        }
 
         @Override
         public int partition(Object key, int numberOfPartitions) {
@@ -60,7 +56,7 @@ final public class Partitioners {
     public static class RandomPartitioner implements Partitioner {
         private final Random random;
 
-        public RandomPartitioner(VerifiableProperties props) {
+        public RandomPartitioner() {
             this.random = new Random();
         }
 
@@ -76,12 +72,13 @@ final public class Partitioners {
      * the value of the key.
      */
     public static class HashPartitioner implements Partitioner {
-        public HashPartitioner(VerifiableProperties props) {
-        }
 
         @Override
         public int partition(Object key, int numberOfPartitions) {
-            return (key.hashCode() & Integer.MAX_VALUE) % numberOfPartitions;
+            if (key != null) {
+                return (key.hashCode() & Integer.MAX_VALUE) % numberOfPartitions;
+            }
+            return 0;
         }
     }
 }
