@@ -199,7 +199,8 @@ public class PutKafka extends AbstractProcessor {
     public static final PropertyDescriptor BATCH_NUM_MESSAGES = new PropertyDescriptor.Builder()
             .name("Async Batch Size").displayName("Batch Size")
             .description("The number of messages to send in one batch. The producer will wait until either this number of messages are ready "
-                            + "to send or \"Queue Buffering Max Time\" is reached.")
+                            + "to send or \"Queue Buffering Max Time\" is reached. NOTE: This property will be ignored unless the 'Message Delimiter' "
+                            + "property is specified.")
             .required(true)
             .addValidator(StandardValidators.POSITIVE_INTEGER_VALIDATOR)
             .defaultValue("200")
@@ -371,15 +372,17 @@ public class PutKafka extends AbstractProcessor {
     /**
      *
      */
-    private Integer determinePartition(SplittableMessageContext messageContext, ProcessContext context,
-            FlowFile flowFile) {
-       String partitionStrategy = context.getProperty(PARTITION_STRATEGY).getValue();
+    private Integer determinePartition(SplittableMessageContext messageContext, ProcessContext context, FlowFile flowFile) {
+        String partitionStrategy = context.getProperty(PARTITION_STRATEGY).getValue();
         Integer partitionValue = null;
-       if (partitionStrategy.equalsIgnoreCase(USER_DEFINED_PARTITIONING.getValue())) {
-            partitionValue = Integer.parseInt(context.getProperty(PARTITION).evaluateAttributeExpressions(flowFile).getValue());
-       }
-       return partitionValue;
-   }
+        if (partitionStrategy.equalsIgnoreCase(USER_DEFINED_PARTITIONING.getValue())) {
+            String pv = context.getProperty(PARTITION).evaluateAttributeExpressions(flowFile).getValue();
+            if (pv != null){
+                partitionValue = Integer.parseInt(context.getProperty(PARTITION).evaluateAttributeExpressions(flowFile).getValue());
+            }
+        }
+        return partitionValue;
+    }
 
     /**
      *
@@ -431,7 +434,12 @@ public class PutKafka extends AbstractProcessor {
         properties.setProperty("acks", context.getProperty(DELIVERY_GUARANTEE).getValue());
         properties.setProperty("buffer.memory", String.valueOf(context.getProperty(MAX_BUFFER_SIZE).asDataSize(DataUnit.B).longValue()));
         properties.setProperty("compression.type", context.getProperty(COMPRESSION_CODEC).getValue());
-        properties.setProperty("batch.size", context.getProperty(BATCH_NUM_MESSAGES).getValue());
+        if (context.getProperty(MESSAGE_DELIMITER).isSet()) {
+            properties.setProperty("batch.size", context.getProperty(BATCH_NUM_MESSAGES).getValue());
+        } else {
+            properties.setProperty("batch.size", "1");
+        }
+
         properties.setProperty("client.id", context.getProperty(CLIENT_NAME).getValue());
         Long queueBufferingMillis = context.getProperty(QUEUE_BUFFERING_MAX).asTimePeriod(TimeUnit.MILLISECONDS);
         if (queueBufferingMillis != null) {

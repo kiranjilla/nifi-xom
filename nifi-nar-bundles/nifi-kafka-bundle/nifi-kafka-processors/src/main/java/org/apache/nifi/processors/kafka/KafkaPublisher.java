@@ -21,12 +21,10 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Scanner;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -121,24 +119,24 @@ public class KafkaPublisher implements AutoCloseable {
         List<Future<RecordMetadata>> sendFutures = new ArrayList<>();
         BitSet prevFailedSegmentIndexes = messageContext.getFailedSegments();
         int segmentCounter = 0;
-        try (Scanner scanner = new Scanner(contentStream)) {
-            scanner.useDelimiter(Pattern.quote(messageContext.getDelimiterPattern()));
-            while (scanner.hasNext()) {
-                byte[] content = scanner.next().getBytes();
-                if (content.length > 0){
-                    byte[] key = messageContext.getKeyBytes();
-                    String topicName = messageContext.getTopicName();
-                    if (partitionKey == null && key != null) {
-                        partitionKey = this.getPartition(key, topicName);
-                    }
-                    if (prevFailedSegmentIndexes == null || prevFailedSegmentIndexes.get(segmentCounter)) {
-                        ProducerRecord<byte[], byte[]> message = new ProducerRecord<byte[], byte[]>(topicName, partitionKey, key, content);
-                        sendFutures.add(this.toKafka(message));
-                    }
+        StreamScanner scanner = new StreamScanner(contentStream, messageContext.getDelimiterPattern());
+
+        while (scanner.hasNext()) {
+            byte[] content = scanner.next();
+            if (content.length > 0){
+                byte[] key = messageContext.getKeyBytes();
+                String topicName = messageContext.getTopicName();
+                if (partitionKey == null && key != null) {
+                    partitionKey = this.getPartition(key, topicName);
+                }
+                if (prevFailedSegmentIndexes == null || prevFailedSegmentIndexes.get(segmentCounter)) {
+                    ProducerRecord<byte[], byte[]> message = new ProducerRecord<byte[], byte[]>(topicName, partitionKey, key, content);
+                    sendFutures.add(this.toKafka(message));
                 }
                 segmentCounter++;
             }
         }
+        scanner.close();
         return this.processAcks(sendFutures);
     }
 
