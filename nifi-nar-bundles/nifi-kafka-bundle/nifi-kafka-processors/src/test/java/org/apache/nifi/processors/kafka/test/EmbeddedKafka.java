@@ -82,7 +82,7 @@ public class EmbeddedKafka {
         this.kafkaConfig.setProperty("zookeeper.connect", "localhost:" + this.zookeeperPort);
         this.zookeeperConfig.setProperty("clientPort", String.valueOf(this.zookeeperPort));
         this.zkServer = new ZooKeeperServer();
-        this.kafkaServer = new KafkaServerStartable(new KafkaConfig(kafkaConfig));
+        this.kafkaServer = new KafkaServerStartable(KafkaConfig.fromProps(kafkaConfig));
     }
 
     /**
