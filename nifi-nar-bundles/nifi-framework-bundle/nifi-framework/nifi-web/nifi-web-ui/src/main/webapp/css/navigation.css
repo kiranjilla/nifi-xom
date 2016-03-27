@@ -18,7 +18,7 @@
 
 #pan-and-zoom {
     position: absolute;
-    top: 94px;
+    top: 116px;
     width: 59px;
     height: 153px;
     padding-right: 4px;
@@ -146,7 +146,7 @@ div.actual-size-hover {
 
 #breadcrumbs {
     position: absolute;
-    top: 64px;
+    top: 86px;
     left: 0px;
     right: 0px;
     height: 26px;
@@ -224,7 +224,7 @@ div.actual-size-hover {
 
 #birdseye-container {
     position: absolute;
-    top: 94px;
+    top: 116px;
     right: 0px;
     width: 202px;
     height: 117px;
@@ -256,7 +256,7 @@ div.actual-size-hover {
 
 #birdseye-collapse {
     position: absolute;
-    top: 80px;
+    top: 102px;
     right: 5px;
     width: 15px;
     height: 10px;
