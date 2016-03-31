@@ -155,7 +155,7 @@ public class PutKafka extends AbstractProcessor {
             .build();
     public static final PropertyDescriptor MESSAGE_DELIMITER = new PropertyDescriptor.Builder()
             .name("Message Delimiter")
-            .description("Specifies the delimiter to use for splitting apart multiple messages within a single FlowFile. "
+            .description("Specifies the delimiter (interpreted in its UTF-8 byte representation) to use for splitting apart multiple messages within a single FlowFile. "
                             + "If not specified, the entire content of the FlowFile will be used as a single message. If specified, "
                             + "the contents of the FlowFile will be split on this delimiter and each section sent as a separate Kafka "
                             + "message. Note that if messages are delimited and some messages for a given FlowFile are transferred "
@@ -177,7 +177,8 @@ public class PutKafka extends AbstractProcessor {
     static final PropertyDescriptor MAX_RECORD_SIZE = new PropertyDescriptor.Builder()
             .name("Max Record Size")
             .description("The maximum size that any individual record can be.")
-            .addValidator(StandardValidators.DATA_SIZE_VALIDATOR).required(true)
+            .addValidator(StandardValidators.DATA_SIZE_VALIDATOR)
+            .required(true)
             .defaultValue("1 MB")
             .build();
     public static final PropertyDescriptor TIMEOUT = new PropertyDescriptor.Builder()
@@ -294,7 +295,8 @@ public class PutKafka extends AbstractProcessor {
             session.read(flowFile, new InputStreamCallback() {
                 @Override
                 public void process(InputStream contentStream) throws IOException {
-                    failedSegmentsRef.set(kafkaPublisher.publish(messageContext, contentStream, partitionKey));
+                    int maxRecordSize = context.getProperty(MAX_RECORD_SIZE).asDataSize(DataUnit.B).intValue();
+                    failedSegmentsRef.set(kafkaPublisher.publish(messageContext, contentStream, partitionKey, maxRecordSize));
                 }
             });
 

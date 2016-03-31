@@ -187,6 +187,69 @@ public class TestPutKafka {
         }
     }
 
+    @Test
+    public void testComplexRightPartialDelimitedMessages() {
+        String topicName = "testComplexRightPartialDelimitedMessages";
+        PutKafka putKafka = new PutKafka();
+        TestRunner runner = TestRunners.newTestRunner(putKafka);
+        runner.setProperty(PutKafka.TOPIC, topicName);
+        runner.setProperty(PutKafka.CLIENT_NAME, "foo");
+        runner.setProperty(PutKafka.SEED_BROKERS, "localhost:" + kafkaLocal.getKafkaPort());
+        runner.setProperty(PutKafka.MESSAGE_DELIMITER, "僠<僠WILDSTUFF僠>僠");
+
+        runner.enqueue("Hello World僠<僠WILDSTUFF僠>僠Goodbye僠<僠WILDSTUFF僠>僠I Mean IT!僠<僠WILDSTUFF僠>".getBytes());
+        runner.run(1, false);
+
+        runner.assertAllFlowFilesTransferred(PutKafka.REL_SUCCESS, 1);
+        ConsumerIterator<byte[], byte[]> consumer = this.buildConsumer(topicName);
+        assertEquals("Hello World", new String(consumer.next().message()));
+        assertEquals("Goodbye", new String(consumer.next().message()));
+        assertEquals("I Mean IT!僠<僠WILDSTUFF僠>", new String(consumer.next().message()));
+        runner.shutdown();
+    }
+
+    @Test
+    public void testComplexLeftPartialDelimitedMessages() {
+        String topicName = "testComplexLeftPartialDelimitedMessages";
+        PutKafka putKafka = new PutKafka();
+        TestRunner runner = TestRunners.newTestRunner(putKafka);
+        runner.setProperty(PutKafka.TOPIC, topicName);
+        runner.setProperty(PutKafka.CLIENT_NAME, "foo");
+        runner.setProperty(PutKafka.SEED_BROKERS, "localhost:" + kafkaLocal.getKafkaPort());
+        runner.setProperty(PutKafka.MESSAGE_DELIMITER, "僠<僠WILDSTUFF僠>僠");
+
+        runner.enqueue("Hello World僠<僠WILDSTUFF僠>僠Goodbye僠<僠WILDSTUFF僠>僠I Mean IT!僠<僠WILDSTUFF僠>僠<僠WILDSTUFF僠>僠".getBytes());
+        runner.run(1, false);
+
+        runner.assertAllFlowFilesTransferred(PutKafka.REL_SUCCESS, 1);
+        ConsumerIterator<byte[], byte[]> consumer = this.buildConsumer(topicName);
+        assertEquals("Hello World", new String(consumer.next().message()));
+        assertEquals("Goodbye", new String(consumer.next().message()));
+        assertEquals("I Mean IT!", new String(consumer.next().message()));
+        assertEquals("<僠WILDSTUFF僠>僠", new String(consumer.next().message()));
+        runner.shutdown();
+    }
+
+    @Test
+    public void testComplexPartialMatchDelimitedMessages() {
+        String topicName = "testComplexPartialMatchDelimitedMessages";
+        PutKafka putKafka = new PutKafka();
+        TestRunner runner = TestRunners.newTestRunner(putKafka);
+        runner.setProperty(PutKafka.TOPIC, topicName);
+        runner.setProperty(PutKafka.CLIENT_NAME, "foo");
+        runner.setProperty(PutKafka.SEED_BROKERS, "localhost:" + kafkaLocal.getKafkaPort());
+        runner.setProperty(PutKafka.MESSAGE_DELIMITER, "僠<僠WILDSTUFF僠>僠");
+
+        runner.enqueue("Hello World僠<僠WILDSTUFF僠>僠Goodbye僠<僠WILDBOOMSTUFF僠>僠".getBytes());
+        runner.run(1, false);
+
+        runner.assertAllFlowFilesTransferred(PutKafka.REL_SUCCESS, 1);
+        ConsumerIterator<byte[], byte[]> consumer = this.buildConsumer(topicName);
+        assertEquals("Hello World", new String(consumer.next().message()));
+        assertEquals("Goodbye僠<僠WILDBOOMSTUFF僠>僠", new String(consumer.next().message()));
+        runner.shutdown();
+    }
+
     private ConsumerIterator<byte[], byte[]> buildConsumer(String topic) {
         Properties props = new Properties();
         props.put("zookeeper.connect", "0.0.0.0:" + kafkaLocal.getZookeeperPort());

@@ -17,11 +17,10 @@
 package org.apache.nifi.processors.kafka;
 
 import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-
-import org.apache.nifi.stream.io.ByteArrayOutputStream;
-import org.apache.nifi.stream.io.util.NonThreadSafeCircularBuffer;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
  *
@@ -32,22 +31,24 @@ class StreamScanner {
 
     private final byte[] delimiter;
 
-    private final NonThreadSafeCircularBuffer buffer;
-
-    private final ByteArrayOutputStream baos;
+    private ByteBuffer buffer;
 
     private byte[] data;
 
-    private boolean eos;
+    private final int maxAllowed;
+
+    StreamScanner(InputStream is, String delimiter, int maxAllowed) {
+        this(is, delimiter, 8192, maxAllowed);
+    }
 
     /**
      *
      */
-    StreamScanner(InputStream is, String delimiter) {
+    StreamScanner(InputStream is, String delimiter, int initialBufferSize, int maxAllowed) {
         this.is = new BufferedInputStream(is);
-        this.delimiter = delimiter.getBytes();
-        buffer = new NonThreadSafeCircularBuffer(this.delimiter);
-        baos = new ByteArrayOutputStream();
+        this.delimiter = delimiter.getBytes(StandardCharsets.UTF_8);
+        this.buffer = ByteBuffer.allocate(initialBufferSize);
+        this.maxAllowed = maxAllowed;
     }
 
     /**
@@ -55,29 +56,53 @@ class StreamScanner {
      */
     boolean hasNext() {
         this.data = null;
-        if (!this.eos) {
+        int j = 0;
+        boolean moreData = true;
+        byte b;
+        while (this.data == null) {
+            this.expandBufferIfNecessary();
             try {
-                boolean keepReading = true;
-                while (keepReading) {
-                    byte b = (byte) this.is.read();
-                    if (b > -1) {
-                        baos.write(b);
-                        if (buffer.addAndCompare(b)) {
-                            this.data = Arrays.copyOfRange(baos.getUnderlyingBuffer(), 0, baos.size() - delimiter.length);
-                            keepReading = false;
-                        }
-                    } else {
-                        this.data = baos.toByteArray();
-                        keepReading = false;
-                        this.eos = true;
-                    }
-                }
-                baos.reset();
-            } catch (Exception e) {
+                b = (byte) this.is.read();
+            } catch (IOException e) {
                 throw new IllegalStateException("Failed while reading InputStream", e);
             }
+            if (b == -1) {
+                this.extractDataToken(0);
+                moreData = false;
+            } else {
+                this.buffer.put(b);
+                if (this.buffer.position() > this.maxAllowed) {
+                    throw new IllegalStateException("Maximum allowed buffer size exceeded.");
+                }
+                if (this.delimiter[j] == b) {
+                    if (++j == this.delimiter.length) {
+                        this.extractDataToken(this.delimiter.length);
+                        j = 0;
+                    }
+                } else {
+                    j = 0;
+                }
+            }
         }
-        return this.data != null;
+        return this.data.length > 0 || moreData;
+    }
+
+    private void expandBufferIfNecessary() {
+        if (this.buffer.remaining() == 0) {
+            this.buffer.flip();
+            int pos = this.buffer.capacity();
+            ByteBuffer bb = ByteBuffer.allocate(this.buffer.capacity() * 2);
+            bb.put(this.buffer);
+            this.buffer = bb;
+            this.buffer.position(pos);
+        }
+    }
+
+    private void extractDataToken(int lengthSubtract) {
+        this.buffer.flip();
+        this.data = new byte[this.buffer.limit() - lengthSubtract];
+        this.buffer.get(this.data);
+        this.buffer.clear();
     }
 
     /**
@@ -85,9 +110,5 @@ class StreamScanner {
      */
     byte[] next() {
         return this.data;
-    }
-
-    void close() {
-        this.baos.close();
     }
 }
