@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import org.junit.Assert;
 
 import org.junit.Test;
 
@@ -57,5 +58,23 @@ public class StreamScannerTests {
         ByteArrayInputStream is = new ByteArrayInputStream(data.getBytes());
         StreamScanner scanner = new StreamScanner(is, "<MY DEIMITER>", 20);
         assertTrue(scanner.hasNext());
+    }
+
+    @Test
+    public void verifyScannerHandlesNegativeOneByteInputs() {
+        ByteArrayInputStream is = new ByteArrayInputStream(new byte[]{0, 0, 0, 0, -1, 0, 0, 0});
+        StreamScanner scanner = new StreamScanner(is, "water", 2000, 20);
+        assertTrue(scanner.hasNext());
+        Assert.assertArrayEquals(scanner.next(), new byte[]{0, 0, 0, 0, -1, 0, 0, 0});
+    }
+
+    @Test
+    public void verifyScannerHandlesNegativeOneByteDelimiter() {
+        ByteArrayInputStream is = new ByteArrayInputStream(new byte[]{0, 0, 0, 0, -1, 0, 0, 0});
+        StreamScanner scanner = new StreamScanner(is, new byte[]{-1}, 2000, 20);
+        assertTrue(scanner.hasNext());
+        Assert.assertArrayEquals(scanner.next(), new byte[]{0, 0, 0, 0});
+        assertTrue(scanner.hasNext());
+        Assert.assertArrayEquals(scanner.next(), new byte[]{0, 0, 0});
     }
 }

@@ -41,12 +41,16 @@ class StreamScanner {
         this(is, delimiter, 8192, maxAllowed);
     }
 
+    StreamScanner(InputStream is, String delimiter, int initialBufferSize, int maxAllowed) {
+        this(is, delimiter.getBytes(StandardCharsets.UTF_8), initialBufferSize, maxAllowed);
+    }
+
     /**
      *
      */
-    StreamScanner(InputStream is, String delimiter, int initialBufferSize, int maxAllowed) {
+    StreamScanner(InputStream is, byte[] delimiterBytes, int initialBufferSize, int maxAllowed) {
         this.is = new BufferedInputStream(is);
-        this.delimiter = delimiter.getBytes(StandardCharsets.UTF_8);
+        this.delimiter = delimiterBytes;
         this.buffer = ByteBuffer.allocate(initialBufferSize);
         this.maxAllowed = maxAllowed;
     }
@@ -58,23 +62,24 @@ class StreamScanner {
         this.data = null;
         int j = 0;
         boolean moreData = true;
-        byte b;
+        int readVal;
         while (this.data == null) {
             this.expandBufferIfNecessary();
             try {
-                b = (byte) this.is.read();
+                readVal = this.is.read();
             } catch (IOException e) {
                 throw new IllegalStateException("Failed while reading InputStream", e);
             }
-            if (b == -1) {
+            if (readVal == -1) {
                 this.extractDataToken(0);
                 moreData = false;
             } else {
-                this.buffer.put(b);
+                byte byteVal = (byte)readVal;
+                this.buffer.put(byteVal);
                 if (this.buffer.position() > this.maxAllowed) {
                     throw new IllegalStateException("Maximum allowed buffer size exceeded.");
                 }
-                if (this.delimiter[j] == b) {
+                if (this.delimiter[j] == byteVal) {
                     if (++j == this.delimiter.length) {
                         this.extractDataToken(this.delimiter.length);
                         j = 0;
