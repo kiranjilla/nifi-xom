@@ -352,6 +352,15 @@ public class PostHTTP extends AbstractProcessor {
         }
 
         configMap.clear();
+
+        final StreamThrottler throttler = throttlerRef.getAndSet(null);
+        if(throttler != null) {
+            try {
+                throttler.close();
+            } catch (IOException e) {
+                getLogger().error("Failed to close StreamThrottler", e);
+            }
+        }
     }
 
     @OnScheduled
