@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.nifi.cluster.coordination.node;
 
 import static org.junit.Assert.assertEquals;
@@ -27,6 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,6 +46,7 @@ import org.apache.nifi.cluster.protocol.message.ProtocolMessage;
 import org.apache.nifi.cluster.protocol.message.ReconnectionRequestMessage;
 import org.apache.nifi.events.EventReporter;
 import org.apache.nifi.services.FlowService;
+import org.apache.nifi.util.NiFiProperties;
 import org.apache.nifi.web.revision.RevisionManager;
 import org.junit.Assert;
 import org.junit.Before;
@@ -55,13 +56,21 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 public class TestNodeClusterCoordinator {
+
     private NodeClusterCoordinator coordinator;
     private ClusterCoordinationProtocolSenderListener senderListener;
     private List<NodeConnectionStatus> nodeStatuses;
 
+    private NiFiProperties createProperties() {
+        final Map<String,String> addProps = new HashMap<>();
+        addProps.put("nifi.zookeeper.connect.string", "localhost:2181");
+        return NiFiProperties.createBasicNiFiProperties(null, addProps);
+    }
 
     @Before
     public void setup() throws IOException {
+        System.setProperty(NiFiProperties.PROPERTIES_FILE_PATH, "src/test/resources/conf/nifi.properties");
+
         senderListener = Mockito.mock(ClusterCoordinationProtocolSenderListener.class);
         nodeStatuses = Collections.synchronizedList(new ArrayList<>());
 
@@ -69,7 +78,7 @@ public class TestNodeClusterCoordinator {
         final RevisionManager revisionManager = Mockito.mock(RevisionManager.class);
         Mockito.when(revisionManager.getAllRevisions()).thenReturn(Collections.emptyList());
 
-        coordinator = new NodeClusterCoordinator(senderListener, eventReporter, null, null, revisionManager) {
+        coordinator = new NodeClusterCoordinator(senderListener, eventReporter, null, null, revisionManager, createProperties()) {
             @Override
             void notifyOthersOfNodeStatusChange(NodeConnectionStatus updatedStatus, boolean notifyAllNodes, boolean waitForCoordinator) {
                 nodeStatuses.add(updatedStatus);
@@ -107,7 +116,7 @@ public class TestNodeClusterCoordinator {
         assertNotNull(statuses);
         assertEquals(6, statuses.size());
         final Map<NodeIdentifier, NodeConnectionStatus> statusMap = statuses.stream().collect(
-            Collectors.toMap(status -> status.getNodeIdentifier(), status -> status));
+                Collectors.toMap(status -> status.getNodeIdentifier(), status -> status));
 
         assertEquals(DisconnectionCode.LACK_OF_HEARTBEAT, statusMap.get(createNodeId(1)).getDisconnectCode());
         assertEquals(NodeConnectionState.DISCONNECTING, statusMap.get(createNodeId(2)).getState());
@@ -124,7 +133,7 @@ public class TestNodeClusterCoordinator {
         final RevisionManager revisionManager = Mockito.mock(RevisionManager.class);
         Mockito.when(revisionManager.getAllRevisions()).thenReturn(Collections.emptyList());
 
-        final NodeClusterCoordinator coordinator = new NodeClusterCoordinator(senderListener, eventReporter, null, null, revisionManager) {
+        final NodeClusterCoordinator coordinator = new NodeClusterCoordinator(senderListener, eventReporter, null, null, revisionManager, createProperties()) {
             @Override
             void notifyOthersOfNodeStatusChange(NodeConnectionStatus updatedStatus, boolean notifyAllNodes, boolean waitForCoordinator) {
             }
@@ -162,7 +171,7 @@ public class TestNodeClusterCoordinator {
         final RevisionManager revisionManager = Mockito.mock(RevisionManager.class);
         Mockito.when(revisionManager.getAllRevisions()).thenReturn(Collections.emptyList());
 
-        final NodeClusterCoordinator coordinator = new NodeClusterCoordinator(senderListener, eventReporter, null, null, revisionManager) {
+        final NodeClusterCoordinator coordinator = new NodeClusterCoordinator(senderListener, eventReporter, null, null, revisionManager, createProperties()) {
             @Override
             void notifyOthersOfNodeStatusChange(NodeConnectionStatus updatedStatus, boolean notifyAllNodes, boolean waitForCoordinator) {
             }
@@ -252,7 +261,6 @@ public class TestNodeClusterCoordinator {
         assertEquals("Unit Test", statusChange.getDisconnectReason());
     }
 
-
     @Test
     public void testGetConnectionStates() throws IOException {
         // Add a disconnected node
@@ -310,7 +318,6 @@ public class TestNodeClusterCoordinator {
         assertTrue(disconnectedIds.contains(createNodeId(1)));
     }
 
-
     @Test(timeout = 5000)
     public void testRequestNodeDisconnect() throws InterruptedException {
         // Add a connected node
@@ -334,7 +341,6 @@ public class TestNodeClusterCoordinator {
         assertEquals(nodeId1, status.getNodeIdentifier());
         assertEquals(NodeConnectionState.DISCONNECTED, status.getState());
     }
-
 
     @Test(timeout = 5000)
     public void testCannotDisconnectLastNode() throws InterruptedException {
@@ -363,7 +369,6 @@ public class TestNodeClusterCoordinator {
         coordinator.requestNodeDisconnect(nodeId2, DisconnectionCode.USER_DISCONNECTED, "Unit Test");
     }
 
-
     @Test(timeout = 5000)
     public void testUpdateNodeStatusOutOfOrder() throws InterruptedException {
         // Add a connected node
@@ -390,7 +395,6 @@ public class TestNodeClusterCoordinator {
         Thread.sleep(1000);
         assertTrue(nodeStatuses.isEmpty());
     }
-
 
     @Test
     public void testProposedIdentifierResolvedIfConflict() {

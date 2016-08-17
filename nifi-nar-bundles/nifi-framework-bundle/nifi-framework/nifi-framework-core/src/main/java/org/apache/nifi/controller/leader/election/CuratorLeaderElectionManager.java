@@ -14,12 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.nifi.controller.leader.election;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.RetryPolicy;
@@ -39,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CuratorLeaderElectionManager implements LeaderElectionManager {
+
     private static final Logger logger = LoggerFactory.getLogger(CuratorLeaderElectionManager.class);
 
     private final FlowEngine leaderElectionMonitorEngine;
@@ -51,16 +50,10 @@ public class CuratorLeaderElectionManager implements LeaderElectionManager {
     private final Map<String, LeaderRole> leaderRoles = new HashMap<>();
     private final Map<String, RegisteredRole> registeredRoles = new HashMap<>();
 
-
-    public CuratorLeaderElectionManager(final int threadPoolSize) {
-        this(threadPoolSize, NiFiProperties.getInstance());
-    }
-
-    public CuratorLeaderElectionManager(final int threadPoolSize, final Properties properties) {
+    public CuratorLeaderElectionManager(final int threadPoolSize, final NiFiProperties properties) {
         leaderElectionMonitorEngine = new FlowEngine(threadPoolSize, "Leader Election Notification", true);
         zkConfig = ZooKeeperClientConfig.createConfig(properties);
     }
-
 
     @Override
     public synchronized void start() {
@@ -72,12 +65,12 @@ public class CuratorLeaderElectionManager implements LeaderElectionManager {
 
         final RetryPolicy retryPolicy = new RetryForever(5000);
         curatorClient = CuratorFrameworkFactory.builder()
-            .connectString(zkConfig.getConnectString())
-            .sessionTimeoutMs(zkConfig.getSessionTimeoutMillis())
-            .connectionTimeoutMs(zkConfig.getConnectionTimeoutMillis())
-            .retryPolicy(retryPolicy)
-            .defaultData(new byte[0])
-            .build();
+                .connectString(zkConfig.getConnectString())
+                .sessionTimeoutMs(zkConfig.getSessionTimeoutMillis())
+                .connectionTimeoutMs(zkConfig.getConnectionTimeoutMillis())
+                .retryPolicy(retryPolicy)
+                .defaultData(new byte[0])
+                .build();
 
         curatorClient.start();
 
@@ -92,12 +85,10 @@ public class CuratorLeaderElectionManager implements LeaderElectionManager {
         logger.info("{} started", this);
     }
 
-
     @Override
     public synchronized void register(final String roleName) {
         register(roleName, null);
     }
-
 
     @Override
     public void register(String roleName, LeaderElectionStateChangeListener listener) {
@@ -181,12 +172,10 @@ public class CuratorLeaderElectionManager implements LeaderElectionManager {
         return stopped;
     }
 
-
     @Override
     public String toString() {
         return "CuratorLeaderElectionManager[stopped=" + isStopped() + "]";
     }
-
 
     @Override
     public synchronized boolean isLeader(final String roleName) {
@@ -226,6 +215,7 @@ public class CuratorLeaderElectionManager implements LeaderElectionManager {
     }
 
     private static class LeaderRole {
+
         private final LeaderSelector leaderSelector;
         private final ElectionListener electionListener;
 
@@ -244,6 +234,7 @@ public class CuratorLeaderElectionManager implements LeaderElectionManager {
     }
 
     private static class RegisteredRole {
+
         private final LeaderElectionStateChangeListener listener;
         private final String participantId;
 
@@ -262,6 +253,7 @@ public class CuratorLeaderElectionManager implements LeaderElectionManager {
     }
 
     private class ElectionListener extends LeaderSelectorListenerAdapter implements LeaderSelectorListener {
+
         private final String roleName;
         private final LeaderElectionStateChangeListener listener;
 

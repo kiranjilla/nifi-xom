@@ -14,14 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.nifi.cluster.coordination.heartbeat;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -49,10 +47,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Uses Apache ZooKeeper to advertise the address to send heartbeats to, and then relies on the NiFi Cluster
- * Protocol to receive heartbeat messages from nodes in the cluster.
+ * Uses Apache ZooKeeper to advertise the address to send heartbeats to, and
+ * then relies on the NiFi Cluster Protocol to receive heartbeat messages from
+ * nodes in the cluster.
  */
 public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor implements HeartbeatMonitor, ProtocolHandler {
+
     protected static final Logger logger = LoggerFactory.getLogger(ClusterProtocolHeartbeatMonitor.class);
 
     private final String heartbeatAddress;
@@ -69,28 +69,27 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
         }
     }
 
-
-    public ClusterProtocolHeartbeatMonitor(final ClusterCoordinator clusterCoordinator, final ProtocolListener protocolListener, final Properties properties) {
-        super(clusterCoordinator, properties);
+    public ClusterProtocolHeartbeatMonitor(final ClusterCoordinator clusterCoordinator, final ProtocolListener protocolListener, final NiFiProperties nifiProperties) {
+        super(clusterCoordinator, nifiProperties);
 
         protocolListener.addHandler(this);
 
-        String hostname = properties.getProperty(NiFiProperties.CLUSTER_NODE_ADDRESS);
+        String hostname = nifiProperties.getProperty(NiFiProperties.CLUSTER_NODE_ADDRESS);
         if (hostname == null || hostname.trim().isEmpty()) {
             hostname = "localhost";
         }
 
-        final String port = properties.getProperty(NiFiProperties.CLUSTER_NODE_PROTOCOL_PORT);
+        final String port = nifiProperties.getProperty(NiFiProperties.CLUSTER_NODE_PROTOCOL_PORT);
         if (port == null || port.trim().isEmpty()) {
             throw new RuntimeException("Unable to determine which port Cluster Coordinator Protocol is listening on because the '"
-                + NiFiProperties.CLUSTER_NODE_PROTOCOL_PORT + "' property is not set");
+                    + NiFiProperties.CLUSTER_NODE_PROTOCOL_PORT + "' property is not set");
         }
 
         try {
             Integer.parseInt(port);
         } catch (final NumberFormatException nfe) {
             throw new RuntimeException("Unable to determine which port Cluster Coordinator Protocol is listening on because the '"
-                + NiFiProperties.CLUSTER_NODE_PROTOCOL_PORT + "' property is set to '" + port + "', which is not a valid port number.");
+                    + NiFiProperties.CLUSTER_NODE_PROTOCOL_PORT + "' property is set to '" + port + "', which is not a valid port number.");
         }
 
         heartbeatAddress = hostname + ":" + port;
@@ -111,7 +110,7 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
         heartbeatMessages.clear();
         for (final NodeIdentifier nodeId : clusterCoordinator.getNodeIdentifiers()) {
             final NodeHeartbeat heartbeat = new StandardNodeHeartbeat(nodeId, System.currentTimeMillis(),
-                clusterCoordinator.getConnectionStatus(nodeId), 0, 0L, 0, System.currentTimeMillis());
+                    clusterCoordinator.getConnectionStatus(nodeId), 0, 0L, 0, System.currentTimeMillis());
             heartbeatMessages.put(nodeId, heartbeat);
         }
     }
@@ -130,7 +129,6 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
         logger.debug("Deleting heartbeat for node {}", nodeId);
         heartbeatMessages.remove(nodeId);
     }
-
 
     @Override
     public ProtocolMessage handle(final ProtocolMessage msg) throws ProtocolException {
@@ -151,7 +149,7 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
         final long systemStartTime = payload.getSystemStartTime();
 
         final NodeHeartbeat nodeHeartbeat = new StandardNodeHeartbeat(nodeId, System.currentTimeMillis(),
-            connectionStatus, flowFileCount, flowFileBytes, activeThreadCount, systemStartTime);
+                connectionStatus, flowFileCount, flowFileBytes, activeThreadCount, systemStartTime);
         heartbeatMessages.put(heartbeat.getNodeIdentifier(), nodeHeartbeat);
         logger.debug("Received new heartbeat from {}", nodeId);
 
@@ -165,11 +163,10 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
         return responseMessage;
     }
 
-
     private List<NodeConnectionStatus> getUpdatedStatuses(final List<NodeConnectionStatus> nodeStatusList) {
         // Map node's statuses by NodeIdentifier for quick & easy lookup
         final Map<NodeIdentifier, NodeConnectionStatus> nodeStatusMap = nodeStatusList.stream()
-            .collect(Collectors.toMap(status -> status.getNodeIdentifier(), Function.identity()));
+                .collect(Collectors.toMap(status -> status.getNodeIdentifier(), Function.identity()));
 
         // Check if our connection status is the same for each Node Identifier and if not, add our version of the status
         // to a List of updated statuses.
@@ -191,7 +188,7 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
         }
 
         logger.debug("\n\nCalculated diff between current cluster status and node cluster status as follows:\nNode: {}\nSelf: {}\nDifference: {}\n\n",
-            nodeStatusList, currentStatuses, updatedStatuses);
+                nodeStatusList, currentStatuses, updatedStatuses);
 
         return updatedStatuses;
     }

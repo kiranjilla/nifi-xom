@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.nifi.controller.cluster;
 
 import java.io.IOException;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,11 +36,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Uses Leader Election Manager in order to determine which node is the elected Cluster Coordinator and to indicate
- * that this node is part of the cluster. Once the Cluster Coordinator is known, heartbeats are
- * sent directly to the Cluster Coordinator.
+ * Uses Leader Election Manager in order to determine which node is the elected
+ * Cluster Coordinator and to indicate that this node is part of the cluster.
+ * Once the Cluster Coordinator is known, heartbeats are sent directly to the
+ * Cluster Coordinator.
  */
 public class ClusterProtocolHeartbeater implements Heartbeater {
+
     private static final Logger logger = LoggerFactory.getLogger(ClusterProtocolHeartbeater.class);
 
     private final NodeProtocolSender protocolSender;
@@ -72,7 +74,7 @@ public class ClusterProtocolHeartbeater implements Heartbeater {
         final HeartbeatPayload payload = HeartbeatPayload.unmarshal(payloadBytes);
         final List<NodeConnectionStatus> nodeStatusList = payload.getClusterStatus();
         final Map<NodeIdentifier, Long> updateIdMap = nodeStatusList.stream().collect(
-            Collectors.toMap(status -> status.getNodeIdentifier(), status -> status.getUpdateIdentifier()));
+                Collectors.toMap(status -> status.getNodeIdentifier(), status -> status.getUpdateIdentifier()));
 
         final List<NodeConnectionStatus> updatedStatuses = responseMessage.getUpdatedNodeStatuses();
         if (updatedStatuses != null) {
