@@ -125,7 +125,6 @@ import org.apache.nifi.controller.repository.claim.ContentDirection;
 import org.apache.nifi.controller.repository.claim.ResourceClaim;
 import org.apache.nifi.controller.repository.claim.ResourceClaimManager;
 import org.apache.nifi.controller.repository.claim.StandardContentClaim;
-import org.apache.nifi.controller.repository.claim.StandardResourceClaim;
 import org.apache.nifi.controller.repository.claim.StandardResourceClaimManager;
 import org.apache.nifi.controller.repository.io.LimitedInputStream;
 import org.apache.nifi.controller.scheduling.EventDrivenSchedulingAgent;
@@ -581,7 +580,7 @@ public class FlowController implements EventAccess, ControllerServiceProvider, R
         heartbeatBeanRef.set(new HeartbeatBean(rootGroup, false));
 
         if (configuredForClustering) {
-            leaderElectionManager = new CuratorLeaderElectionManager(4);
+            leaderElectionManager = new CuratorLeaderElectionManager(4, properties);
             heartbeater = new ClusterProtocolHeartbeater(protocolSender, properties);
 
             // Check if there is already a cluster coordinator elected. If not, go ahead
@@ -615,10 +614,6 @@ public class FlowController implements EventAccess, ControllerServiceProvider, R
     @Override
     public Resource getResource() {
         return ResourceFactory.getControllerResource();
-    }
-
-    public HeartbeatMonitor getHeartbeatMonitor() {
-        return heartbeatMonitor;
     }
 
     private static FlowFileRepository createFlowFileRepository(final NiFiProperties properties, final ResourceClaimManager contentClaimManager) {
@@ -1295,6 +1290,10 @@ public class FlowController implements EventAccess, ControllerServiceProvider, R
 
             if (leaderElectionManager != null) {
                 leaderElectionManager.stop();
+            }
+
+            if (heartbeatMonitor != null) {
+                heartbeatMonitor.stop();
             }
 
             if (kill) {
@@ -3311,7 +3310,16 @@ public class FlowController implements EventAccess, ControllerServiceProvider, R
         leaderElectionManager.register(ClusterRoles.CLUSTER_COORDINATOR, new LeaderElectionStateChangeListener() {
             @Override
             public synchronized void onLeaderRelinquish() {
-                heartbeatMonitor.stop();
+                LOG.info("This node is no longer the elected Active Cluster Coordinator");
+
+                // We do not want to stop the heartbeat monitor. This is because even though ZooKeeper offers guarantees
+                // that watchers will see changes on a ZNode in the order they happened, there does not seem to be any
+                // guarantee that Curator will notify us that our leadership was gained or loss in the order that it happened.
+                // As a result, if nodes connect/disconnect from cluster quickly, we could invoke stop() then start() or
+                // start() then stop() in the wrong order, which can cause the cluster to behavior improperly. As a result, we simply
+                // call start() when we become the leader, and this will ensure that initialization is handled. The heartbeat monitor
+                // then will check the zookeeper znode to check if it is the cluster coordinator before kicking any nodes out of the
+                // cluster.
 
                 if (clusterCoordinator != null) {
                     clusterCoordinator.removeRole(ClusterRoles.CLUSTER_COORDINATOR);
@@ -3320,7 +3328,8 @@ public class FlowController implements EventAccess, ControllerServiceProvider, R
 
             @Override
             public synchronized void onLeaderElection() {
-                heartbeatMonitor.start();
+                LOG.info("This node elected Active Cluster Coordinator");
+                heartbeatMonitor.start();   // ensure heartbeat monitor is started
 
                 if (clusterCoordinator != null) {
                     clusterCoordinator.addRole(ClusterRoles.CLUSTER_COORDINATOR);
@@ -3522,7 +3531,7 @@ public class FlowController implements EventAccess, ControllerServiceProvider, R
                     return null;
                 }
 
-                final StandardResourceClaim resourceClaim = new StandardResourceClaim(container, section, identifier, false);
+                final ResourceClaim resourceClaim = resourceClaimManager.newResourceClaim(container, section, identifier, false);
                 return new StandardContentClaim(resourceClaim, offset == null ? 0L : offset.longValue());
             }
 
@@ -3879,7 +3888,10 @@ public class FlowController implements EventAccess, ControllerServiceProvider, R
                     heartbeatLogger.debug(usae.getMessage());
                 }
             } catch (final Throwable ex) {
-                heartbeatLogger.warn("Failed to send heartbeat due to: " + ex, ex);
+                heartbeatLogger.warn("Failed to send heartbeat due to: " + ex);
+                if (heartbeatLogger.isDebugEnabled()) {
+                    heartbeatLogger.warn("", ex);
+                }
             }
         }
     }

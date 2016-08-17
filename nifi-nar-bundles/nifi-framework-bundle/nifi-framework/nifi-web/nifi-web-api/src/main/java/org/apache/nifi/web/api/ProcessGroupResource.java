@@ -26,7 +26,9 @@ import com.wordnik.swagger.annotations.ApiResponses;
 import com.wordnik.swagger.annotations.Authorization;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.authorization.AuthorizableLookup;
+import org.apache.nifi.authorization.AuthorizeControllerServiceReference;
 import org.apache.nifi.authorization.Authorizer;
+import org.apache.nifi.authorization.ControllerServiceReferencingComponentAuthorizable;
 import org.apache.nifi.authorization.ProcessGroupAuthorizable;
 import org.apache.nifi.authorization.RequestAction;
 import org.apache.nifi.authorization.resource.Authorizable;
@@ -38,7 +40,10 @@ import org.apache.nifi.web.NiFiServiceFacade;
 import org.apache.nifi.web.ResourceNotFoundException;
 import org.apache.nifi.web.Revision;
 import org.apache.nifi.web.api.dto.ConnectionDTO;
+import org.apache.nifi.web.api.dto.ControllerServiceDTO;
 import org.apache.nifi.web.api.dto.ProcessGroupDTO;
+import org.apache.nifi.web.api.dto.ProcessorConfigDTO;
+import org.apache.nifi.web.api.dto.ProcessorDTO;
 import org.apache.nifi.web.api.dto.RemoteProcessGroupDTO;
 import org.apache.nifi.web.api.dto.TemplateDTO;
 import org.apache.nifi.web.api.dto.flow.FlowDTO;
@@ -320,7 +325,8 @@ public class ProcessGroupResource extends ApplicationResource {
             value = "Deletes a process group",
             response = ProcessGroupEntity.class,
             authorizations = {
-                    @Authorization(value = "Write - /process-groups/{uuid}", type = "")
+                    @Authorization(value = "Write - /process-groups/{uuid}", type = ""),
+                    @Authorization(value = "Write - /{component-type}/{uuid} - For all encapsulated components", type = "")
             }
     )
     @ApiResponses(
@@ -552,7 +558,8 @@ public class ProcessGroupResource extends ApplicationResource {
             value = "Creates a new processor",
             response = ProcessorEntity.class,
             authorizations = {
-                    @Authorization(value = "Write - /process-groups/{uuid}", type = "")
+                    @Authorization(value = "Write - /process-groups/{uuid}", type = ""),
+                    @Authorization(value = "Read - any referenced Controller Services - /controller-services/{uuid}", type = "")
             }
     )
     @ApiResponses(
@@ -584,19 +591,20 @@ public class ProcessGroupResource extends ApplicationResource {
             throw new IllegalArgumentException("A revision of 0 must be specified when creating a new Processor.");
         }
 
-        if (processorEntity.getComponent().getId() != null) {
+        final ProcessorDTO requestProcessor = processorEntity.getComponent();
+        if (requestProcessor.getId() != null) {
             throw new IllegalArgumentException("Processor ID cannot be specified.");
         }
 
-        if (StringUtils.isBlank(processorEntity.getComponent().getType())) {
+        if (StringUtils.isBlank(requestProcessor.getType())) {
             throw new IllegalArgumentException("The type of processor to create must be specified.");
         }
 
-        if (processorEntity.getComponent().getParentGroupId() != null && !groupId.equals(processorEntity.getComponent().getParentGroupId())) {
+        if (requestProcessor.getParentGroupId() != null && !groupId.equals(requestProcessor.getParentGroupId())) {
             throw new IllegalArgumentException(String.format("If specified, the parent process group id %s must be the same as specified in the URI %s",
-                    processorEntity.getComponent().getParentGroupId(), groupId));
+                    requestProcessor.getParentGroupId(), groupId));
         }
-        processorEntity.getComponent().setParentGroupId(groupId);
+        requestProcessor.setParentGroupId(groupId);
 
         if (isReplicateRequest()) {
             return replicate(HttpMethod.POST, processorEntity);
@@ -609,6 +617,12 @@ public class ProcessGroupResource extends ApplicationResource {
             serviceFacade.authorizeAccess(lookup -> {
                 final Authorizable processGroup = lookup.getProcessGroup(groupId).getAuthorizable();
                 processGroup.authorize(authorizer, RequestAction.WRITE, NiFiUserUtils.getNiFiUser());
+
+                final ProcessorConfigDTO config = requestProcessor.getConfig();
+                if (config != null && config.getProperties() != null) {
+                    final ControllerServiceReferencingComponentAuthorizable authorizable = lookup.getProcessorByType(requestProcessor.getType());
+                    AuthorizeControllerServiceReference.authorizeControllerServiceReferences(config.getProperties(), authorizable, authorizer, lookup);
+                }
             });
         }
         if (validationPhase) {
@@ -616,11 +630,11 @@ public class ProcessGroupResource extends ApplicationResource {
         }
 
         // set the processor id as appropriate
-        processorEntity.getComponent().setId(generateUuid());
+        requestProcessor.setId(generateUuid());
 
         // create the new processor
-        final Revision revision = getRevision(processorEntity, processorEntity.getComponent().getId());
-        final ProcessorEntity entity = serviceFacade.createProcessor(revision, groupId, processorEntity.getComponent());
+        final Revision revision = getRevision(processorEntity, requestProcessor.getId());
+        final ProcessorEntity entity = serviceFacade.createProcessor(revision, groupId, requestProcessor);
         processorResource.populateRemainingProcessorEntityContent(entity);
 
         // generate a 201 created response
@@ -1638,7 +1652,7 @@ public class ProcessGroupResource extends ApplicationResource {
             response = FlowSnippetEntity.class,
             authorizations = {
                     @Authorization(value = "Write - /process-groups/{uuid}", type = ""),
-                    @Authorization(value = "Read - /{component-type}/{uuid} - For each component in the snippet", type = "")
+                    @Authorization(value = "Read - /{component-type}/{uuid} - For each component in the snippet and their descendant components", type = "")
             }
     )
     @ApiResponses(
@@ -1826,7 +1840,7 @@ public class ProcessGroupResource extends ApplicationResource {
             response = TemplateEntity.class,
             authorizations = {
                     @Authorization(value = "Write - /process-groups/{uuid}", type = ""),
-                    @Authorization(value = "Read - /{component-type}/{uuid} - For each component in the snippet", type = "")
+                    @Authorization(value = "Read - /{component-type}/{uuid} - For each component in the snippet and their descendant components", type = "")
             }
     )
     @ApiResponses(
@@ -2073,7 +2087,8 @@ public class ProcessGroupResource extends ApplicationResource {
             value = "Creates a new controller service",
             response = ControllerServiceEntity.class,
             authorizations = {
-                    @Authorization(value = "Write - /process-groups/{uuid}", type = "")
+                    @Authorization(value = "Write - /process-groups/{uuid}", type = ""),
+                    @Authorization(value = "Read - any referenced Controller Services - /controller-services/{uuid}", type = "")
             }
     )
     @ApiResponses(
@@ -2104,19 +2119,20 @@ public class ProcessGroupResource extends ApplicationResource {
             throw new IllegalArgumentException("A revision of 0 must be specified when creating a new Controller service.");
         }
 
-        if (controllerServiceEntity.getComponent().getId() != null) {
+        final ControllerServiceDTO requestControllerService = controllerServiceEntity.getComponent();
+        if (requestControllerService.getId() != null) {
             throw new IllegalArgumentException("Controller service ID cannot be specified.");
         }
 
-        if (StringUtils.isBlank(controllerServiceEntity.getComponent().getType())) {
+        if (StringUtils.isBlank(requestControllerService.getType())) {
             throw new IllegalArgumentException("The type of controller service to create must be specified.");
         }
 
-        if (controllerServiceEntity.getComponent().getParentGroupId() != null && !groupId.equals(controllerServiceEntity.getComponent().getParentGroupId())) {
+        if (requestControllerService.getParentGroupId() != null && !groupId.equals(requestControllerService.getParentGroupId())) {
             throw new IllegalArgumentException(String.format("If specified, the parent process group id %s must be the same as specified in the URI %s",
-                    controllerServiceEntity.getComponent().getParentGroupId(), groupId));
+                    requestControllerService.getParentGroupId(), groupId));
         }
-        controllerServiceEntity.getComponent().setParentGroupId(groupId);
+        requestControllerService.setParentGroupId(groupId);
 
         if (isReplicateRequest()) {
             return replicate(HttpMethod.POST, controllerServiceEntity);
@@ -2129,6 +2145,11 @@ public class ProcessGroupResource extends ApplicationResource {
             serviceFacade.authorizeAccess(lookup -> {
                 final Authorizable processGroup = lookup.getProcessGroup(groupId).getAuthorizable();
                 processGroup.authorize(authorizer, RequestAction.WRITE, NiFiUserUtils.getNiFiUser());
+
+                if (requestControllerService.getProperties() != null) {
+                    final ControllerServiceReferencingComponentAuthorizable authorizable = lookup.getControllerServiceByType(requestControllerService.getType());
+                    AuthorizeControllerServiceReference.authorizeControllerServiceReferences(requestControllerService.getProperties(), authorizable, authorizer, lookup);
+                }
             });
         }
         if (validationPhase) {
@@ -2136,11 +2157,11 @@ public class ProcessGroupResource extends ApplicationResource {
         }
 
         // set the processor id as appropriate
-        controllerServiceEntity.getComponent().setId(generateUuid());
+        requestControllerService.setId(generateUuid());
 
         // create the controller service and generate the json
-        final Revision revision = getRevision(controllerServiceEntity, controllerServiceEntity.getComponent().getId());
-        final ControllerServiceEntity entity = serviceFacade.createControllerService(revision, groupId, controllerServiceEntity.getComponent());
+        final Revision revision = getRevision(controllerServiceEntity, requestControllerService.getId());
+        final ControllerServiceEntity entity = serviceFacade.createControllerService(revision, groupId, requestControllerService);
         controllerServiceResource.populateRemainingControllerServiceEntityContent(entity);
 
         // build the response

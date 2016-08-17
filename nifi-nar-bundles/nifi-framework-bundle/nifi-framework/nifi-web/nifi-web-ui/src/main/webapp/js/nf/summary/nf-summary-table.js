@@ -22,9 +22,6 @@ nf.SummaryTable = (function () {
      * Configuration object used to hold a number of configuration items.
      */
     var config = {
-        styles: {
-            filterList: 'summary-filter-list'
-        },
         urls: {
             api: '../nifi-api',
             status: '../nifi-api/flow/process-groups/root/status',
@@ -59,15 +56,7 @@ nf.SummaryTable = (function () {
         // define the function for filtering the list
         $('#summary-filter').keyup(function () {
             applyFilter();
-        }).focus(function () {
-            if ($(this).hasClass(config.styles.filterList)) {
-                $(this).removeClass(config.styles.filterList);
-            }
-        }).blur(function () {
-            if ($(this).val() === '') {
-                $(this).addClass(config.styles.filterList);
-            }
-        }).addClass(config.styles.filterList);
+        });
 
         // initialize the summary tabs
         $('#summary-tabs').tabbs({
@@ -236,7 +225,7 @@ nf.SummaryTable = (function () {
                 }
 
                 // reset the filter
-                $('#summary-filter').addClass(config.styles.filterList);
+                $('#summary-filter').val('');
                 applyFilter();
             }
         });
@@ -2299,12 +2288,7 @@ nf.SummaryTable = (function () {
      * accounts for that.
      */
     var getFilterText = function () {
-        var filterText = '';
-        var filterField = $('#summary-filter');
-        if (!filterField.hasClass(config.styles.filterList)) {
-            filterText = filterField.val();
-        }
-        return filterText;
+        return $('#summary-filter').val();
     };
 
     /**
@@ -2320,36 +2304,36 @@ nf.SummaryTable = (function () {
      */
     var populateProcessGroupStatus = function (processorItems, connectionItems, processGroupItems, inputPortItems, outputPortItems, remoteProcessGroupItems, aggregateSnapshot) {
         // add the processors to the summary grid
-        $.each(aggregateSnapshot.processorStatusSnapshots, function (i, procStatus) {
-            processorItems.push(procStatus);
+        $.each(aggregateSnapshot.processorStatusSnapshots, function (i, procStatusEntity) {
+            processorItems.push(procStatusEntity.processorStatusSnapshot);
         });
 
         // add the processors to the summary grid
-        $.each(aggregateSnapshot.connectionStatusSnapshots, function (i, connStatus) {
-            connectionItems.push(connStatus);
+        $.each(aggregateSnapshot.connectionStatusSnapshots, function (i, connStatusEntity) {
+            connectionItems.push(connStatusEntity.connectionStatusSnapshot);
         });
 
         // add the input ports to the summary grid
-        $.each(aggregateSnapshot.inputPortStatusSnapshots, function (i, portStatus) {
-            inputPortItems.push(portStatus);
+        $.each(aggregateSnapshot.inputPortStatusSnapshots, function (i, portStatusEntity) {
+            inputPortItems.push(portStatusEntity.portStatusSnapshot);
         });
 
         // add the input ports to the summary grid
-        $.each(aggregateSnapshot.outputPortStatusSnapshots, function (i, portStatus) {
-            outputPortItems.push(portStatus);
+        $.each(aggregateSnapshot.outputPortStatusSnapshots, function (i, portStatusEntity) {
+            outputPortItems.push(portStatusEntity.portStatusSnapshot);
         });
 
         // add the input ports to the summary grid
-        $.each(aggregateSnapshot.remoteProcessGroupStatusSnapshots, function (i, rpgStatus) {
-            remoteProcessGroupItems.push(rpgStatus);
+        $.each(aggregateSnapshot.remoteProcessGroupStatusSnapshots, function (i, rpgStatusEntity) {
+            remoteProcessGroupItems.push(rpgStatusEntity.remoteProcessGroupStatusSnapshot);
         });
 
         // add the process group status as well
         processGroupItems.push(aggregateSnapshot);
 
         // add any child group's status
-        $.each(aggregateSnapshot.processGroupStatusSnapshots, function (i, childProcessGroup) {
-            populateProcessGroupStatus(processorItems, connectionItems, processGroupItems, inputPortItems, outputPortItems, remoteProcessGroupItems, childProcessGroup);
+        $.each(aggregateSnapshot.processGroupStatusSnapshots, function (i, childProcessGroupEntity) {
+            populateProcessGroupStatus(processorItems, connectionItems, processGroupItems, inputPortItems, outputPortItems, remoteProcessGroupItems, childProcessGroupEntity.processGroupStatusSnapshot);
         });
     };
 

@@ -238,16 +238,12 @@ public class ConsumeKafka extends AbstractKafkaProcessor<Consumer<byte[], byte[]
          * broker is possible we need a mechanism to be able to disable it.
          * 'check.connection' property will serve as such mechanism
          */
-        if (!kafkaProperties.getProperty("check.connection").equals("false")) {
+        if (!"false".equals(kafkaProperties.get("check.connection"))) {
             this.checkIfInitialConnectionPossible();
         }
 
-        if (!kafkaProperties.containsKey(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
-            kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        }
-        if (!kafkaProperties.containsKey(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)) {
-            kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        }
+        kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
 
         KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(kafkaProperties);
         consumer.subscribe(Collections.singletonList(this.topic));

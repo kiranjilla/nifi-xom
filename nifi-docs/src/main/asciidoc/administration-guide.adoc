@@ -381,9 +381,33 @@ Here is an example entry:
 </authorizers>
 ----
 
-After you have edited and saved the 'authorizers.xml' file, restart NiFi. Users and roles from the 'authorized-users.xml' file are converted and added as identities and policies in the 'authorizations.xml' file.  Once the application starts, users who previously had a legacy Admin role can access the UI and begin managing users, groups, and policies.
+After you have edited and saved the 'authorizers.xml' file, restart NiFi. Users and roles from the 'authorized-users.xml' file are converted and added as identities and policies in the 'authorizations.xml' file.  Once the application starts, users who previously had a legacy Administrator role can access the UI and begin managing users, groups, and policies.
 
-NiFi fails to restart if values exist for both the “Initial Admin Identity” and “Legacy Authorized Users File” properties.  You can specify only one of these values to initialize authorizations.
+Here is a summary of policies assigned to each legacy role if the NiFi instance has an existing flow.xml.gz:
+
+[cols=">s,^s,^s,^s,^s,^s,^s", options="header"]
+|==========================
+|                              | Admin | DFM | Monitor | Provenance | NiFi | Proxy
+|view the UI                   |*      |*    |*        |            |      |
+|view the controller           |*      |*    |*        |            |*     |
+|modify the controller         |       |*    |         |            |      |
+|view system diagnostics       |       |*    |*        |            |      |
+|view the dataflow             |*      |*    |*        |            |      |
+|modify the dataflow           |       |*    |         |            |      |
+|view the users/groups         |*      |     |         |            |      |
+|modify the users/groups       |*      |     |         |            |      |
+|view policies                 |*      |     |         |            |      |
+|modify policies               |*      |     |         |            |      |
+|query provenance              |       |     |         |*           |      |
+|view the data                 |       |*    |         |*           |      |*
+|modify the data               |       |*    |         |            |      |*
+|retrieve site-to-site details |       |     |         |            |*     |
+|send proxy user requests      |       |     |         |            |      |*
+|==========================
+
+For details on the policies in the table, see <<access-policies>>.
+
+NOTE: NiFi fails to restart if values exist for both the “Initial Admin Identity” and “Legacy Authorized Users File” properties.  You can specify only one of these values to initialize authorizations.
 
 NOTE: Do not manually edit the 'authorizations.xml' file. Create authorizations only during initial setup and afterwards using the NiFi UI.
 
@@ -517,8 +541,11 @@ Component level access policies govern the following component level authorizati
 |modify the component
 |Allows users to modify component configuration details
 
-|view the provenance events
-|Allows users to access provenance events and content for a component
+|view the data
+|Allows user to view metadata and content for this component through provenance data and flowfile queues in outbound connections
+
+|modify the data
+|Allows user to empty flowfile queues in outbound connections and submit replays
 
 |view the policies
 |Allows users to view the list of users who can view/modify a component
@@ -541,6 +568,8 @@ NOTE: You can apply access policies to all component types except connections.  
 An administrator does not need to manually create policies for every component in the dataflow.  To reduce the amount of time admins spend on authorization management, policies are inherited from parent resource to child resource.  For example, if a user is given access to view and modify a process group, that user can also view and modify the components in the process group.  Policy inheritance enables an administrator to assign policies at one time and have the policies apply throughout the entire dataflow.
 
 You can override an inherited policy (as described in the <<moving-a-processor>> example below).  Overriding a policy removes the inherited policy, breaking the chain of inheritance from parent to child, and creates a replacement policy to add users as desired.  Inherited policies and their users can be restored by deleting the replacement policy.
+
+NOTE: “View the policies” and “modify the policies” component-level access policies are an exception to this inherited behavior. When a user is added to either policy, they are added to the current list of administrators. They do not override higher level administrators. For this reason, only component specific administrators are displayed for the “view the policies” and “modify the policies" access policies.
 
 [[access-policy-config-examples]]
 Access Policy Configuration Examples
@@ -570,10 +599,8 @@ To allow User2 to move the GenerateFlowFile processor in the dataflow and only t
 1. Select the GenerateFlowFile processor so that it is highlighted.
 2. Select the Access Policies icon (image:iconAccessPolicies.png["Access Policies Icon"]) from the Operate palette and the Access Policies dialog opens.
 3. Select “modify the component” from the policy drop-down.
-
-image:processor-modify-policy.png["Processor Modify Policy"]
-
-The “modify the component” policy that currently exists on the processor (child) is the “modify the component” policy inherited from the root process group (parent) on which User1 has privileges.
+  image:processor-modify-policy.png["Processor Modify Policy"]
+  The “modify the component” policy that currently exists on the processor (child) is the “modify the component” policy inherited from the root process group (parent) on which User1 has privileges.
 [start=4]
 4. Select the Override link in the policy inheritance message to create a replacement policy.
 5. On the replacement policy that is created, select the Add User icon (image:iconAddUser.png["Add User Icon"]). Find or enter User1 in the User Identity field and select OK.  Select the Add User icon again, find or enter User2 and select OK.
@@ -592,10 +619,8 @@ In the “Moving a Processor” example above, User2 was added to the “modify 
 1. Select the GenerateFlowFile processor.
 2. Select the Access Policies icon (image:iconAccessPolicies.png["Access Policies Icon"]) from the Operate palette and the Access Policies dialog opens.
 3. Select "view the component” from the policy drop-down.
-
-image:processor-view-policy.png["Processor View Policy"]
-
-The view the component” policy that currently exists on the processor (child) is the "view the component” policy inherited from the root process group (parent) on which User1 has privileges.
+  image:processor-view-policy.png["Processor View Policy"]
+  The view the component” policy that currently exists on the processor (child) is the "view the component” policy inherited from the root process group (parent) on which User1 has privileges.
 [start=4]
 4. Select the Override link in the policy inheritance message to create a replacement policy.
 5. On the replacement policy that is created, select the Add User icon (image:iconAddUser.png["Add User Icon"]). Find or enter User1 in the User Identity field and select OK.  Select the Add User icon again, find or enter User2 and select OK.
@@ -627,10 +652,8 @@ To allow User2 to connect GenerateFlowFile to LogAttribute, as User1:
 1. Select the root process group. The Operate palette is updated with details for the root process group.
 2. Select the Access Policies icon (image:iconAccessPolicies.png["Access Policies Icon"]) from the Operate palette and the Access Policies dialog opens.
 3. Select "modify the component” from the policy drop-down.
-
-image:process-group-modify-policy.png["Process Group Modify Policy"]
-
-[start=4]
+  image:process-group-modify-policy.png["Process Group Modify Policy"]
+  [start=4]
 4. Select the Add User icon (image:iconAddUser.png["Add User Icon"]). Find or enter User2 and select OK.
 
 image:process-group-modify-policy-add-user2.png["Process Group Modify Policy Add User2"]
@@ -665,10 +688,8 @@ To allow User2 to connect GenerateFlowFile to ReplaceText, as User1:
 1. Select the root process group. The Operate palette is updated with details for the root process group.
 2. Select the Access Policies icon (image:iconAccessPolicies.png["Access Policies Icon"]).
 3. Select "view the component” from the policy drop-down.
-
-image:process-group-view-policy.png["Process Group View Policy"]
-
-[start=4]
+  image:process-group-view-policy.png["Process Group View Policy"]
+  [start=4]
 4. Select the Add User icon (image:iconAddUser.png["Add User Icon"]). Find or enter User2 and select OK.
 
 image:process-group-view-policy-add-user2.png["Process Group View Policy Add User2"]
@@ -1894,5 +1915,19 @@ that is specified.
   Example: `12 hours`
 |====
 
+[[custom_properties]]
+=== Custom Properties
+
+To configure custom properties for use with NiFi’s Expression Language:
+
+* Create the custom property. Ensure that:
+** Each custom property contains a distinct property value, so that it is not overridden by existing environment properties, system properties, or FlowFile attributes.
+** Each node in a clustered environment is configured with the same custom properties.
+* Update the 'nifi.properties' file with the location of the custom property files.
+
+|====
+|*Property*|*Description*
+|nifi.variable.registry.properties|This is a comma-separated list of file location paths for one or more custom property files.
+|====
 
 NOTE: *For Upgrading* - Take care when configuring the properties above that are marked with an asterisk (*). To make the upgrade process easier, it is advisable to change the default configurations to locations outside the main root installation directory. In this way, these items can remain in their configured location through an upgrade, and NiFi can find all the repositories and configuration files and pick up where it left off as soon as the old version is stopped and the new version is started. Furthermore, the administrator may reuse this _nifi.properties_ file and any other configuration files without having to re-configure them each time an upgrade takes place. As previously noted, it is important to check for any changes in the _nifi.properties_ file of the new version when upgrading and make sure they are reflected in the _nifi.properties_ file you use.

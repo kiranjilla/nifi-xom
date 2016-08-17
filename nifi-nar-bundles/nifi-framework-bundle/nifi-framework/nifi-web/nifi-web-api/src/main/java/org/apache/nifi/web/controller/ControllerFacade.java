@@ -29,7 +29,6 @@ import org.apache.nifi.authorization.resource.Authorizable;
 import org.apache.nifi.authorization.resource.ResourceFactory;
 import org.apache.nifi.authorization.user.NiFiUser;
 import org.apache.nifi.authorization.user.NiFiUserUtils;
-import org.apache.nifi.cluster.coordination.ClusterCoordinator;
 import org.apache.nifi.cluster.protocol.NodeIdentifier;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.connectable.Connectable;
@@ -44,9 +43,11 @@ import org.apache.nifi.controller.ProcessorNode;
 import org.apache.nifi.controller.ReportingTaskNode;
 import org.apache.nifi.controller.ScheduledState;
 import org.apache.nifi.controller.Template;
+import org.apache.nifi.controller.exception.ProcessorInstantiationException;
 import org.apache.nifi.controller.label.Label;
 import org.apache.nifi.controller.queue.FlowFileQueue;
 import org.apache.nifi.controller.queue.QueueSize;
+import org.apache.nifi.controller.reporting.ReportingTaskInstantiationException;
 import org.apache.nifi.controller.repository.ContentNotFoundException;
 import org.apache.nifi.controller.repository.claim.ContentDirection;
 import org.apache.nifi.controller.service.ControllerServiceNode;
@@ -79,7 +80,6 @@ import org.apache.nifi.provenance.search.SearchTerms;
 import org.apache.nifi.provenance.search.SearchableField;
 import org.apache.nifi.registry.VariableRegistry;
 import org.apache.nifi.remote.RootGroupPort;
-import org.apache.nifi.reporting.BulletinRepository;
 import org.apache.nifi.reporting.ReportingTask;
 import org.apache.nifi.scheduling.SchedulingStrategy;
 import org.apache.nifi.search.SearchContext;
@@ -128,6 +128,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TimeZone;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -140,8 +141,6 @@ public class ControllerFacade implements Authorizable {
     // nifi components
     private FlowController flowController;
     private FlowService flowService;
-    private ClusterCoordinator clusterCoordinator;
-    private BulletinRepository bulletinRepository;
     private Authorizer authorizer;
 
     // properties
@@ -191,6 +190,38 @@ public class ControllerFacade implements Authorizable {
      */
     public void setComments(String comments) {
         flowController.setComments(comments);
+    }
+
+    /**
+     * Create a temporary Processor used for extracting PropertyDescriptor's for ControllerService reference authorization.
+     *
+     * @param type type of processor
+     * @return processor
+     * @throws ProcessorInstantiationException when unable to instantiate the processor
+     */
+    public ProcessorNode createTemporaryProcessor(String type) throws ProcessorInstantiationException {
+        return flowController.createProcessor(type, UUID.randomUUID().toString(), false);
+    }
+
+    /**
+     * Create a temporary ReportingTask used for extracting PropertyDescriptor's for ControllerService reference authorization.
+     *
+     * @param type type of reporting task
+     * @return reporting task
+     * @throws ReportingTaskInstantiationException when unable to instantiate the reporting task
+     */
+    public ReportingTaskNode createTemporaryReportingTask(String type) throws ReportingTaskInstantiationException {
+        return flowController.createReportingTask(type, UUID.randomUUID().toString(), false);
+    }
+
+    /**
+     * Create a temporary ControllerService used for extracting PropertyDescriptor's for ControllerService reference authorization.
+     *
+     * @param type type of controller service
+     * @return controller service
+     */
+    public ControllerServiceNode createTemporaryControllerService(String type) {
+        return flowController.createControllerService(type, UUID.randomUUID().toString(), false);
     }
 
     /**
@@ -1806,14 +1837,6 @@ public class ControllerFacade implements Authorizable {
 
     public void setDtoFactory(DtoFactory dtoFactory) {
         this.dtoFactory = dtoFactory;
-    }
-
-    public void setClusterCoordinator(ClusterCoordinator clusterCoordinator) {
-        this.clusterCoordinator = clusterCoordinator;
-    }
-
-    public void setBulletinRepository(BulletinRepository bulletinRepository) {
-        this.bulletinRepository = bulletinRepository;
     }
 
     public void setVariableRegistry(VariableRegistry variableRegistry) {

@@ -1620,28 +1620,6 @@ nf.Connection = (function () {
         },
 
         /**
-         * Sets the connection status using the specified status.
-         *
-         * @param {array} connectionStatus
-         */
-        setStatus: function (connectionStatus) {
-            if (nf.Common.isEmpty(connectionStatus)) {
-                return;
-            }
-
-            // update the connection status
-            $.each(connectionStatus, function (_, status) {
-                if (connectionMap.has(status.id)) {
-                    var connection = connectionMap.get(status.id);
-                    connection.status = status;
-                }
-            });
-
-            // update the visible connections
-            d3.selectAll('g.connection.visible').call(updateConnectionStatus);
-        },
-
-        /**
          * Refreshes the connection in the UI.
          *
          * @param {string} connectionId
@@ -1698,11 +1676,11 @@ nf.Connection = (function () {
         /**
          * Reloads the connection state from the server and refreshes the UI.
          *
-         * @param {object} connection       The connection to reload
+         * @param {string} id       The connection id
          */
-        reload: function (connection) {
-            if (connectionMap.has(connection.id)) {
-                var connectionEntity = connectionMap.get(connection.id);
+        reload: function (id) {
+            if (connectionMap.has(id)) {
+                var connectionEntity = connectionMap.get(id);
                 return $.ajax({
                     type: 'GET',
                     url: connectionEntity.uri,

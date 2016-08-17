@@ -75,20 +75,8 @@ nf.PolicyManagement = (function () {
                             var selectedUser = [];
                             selectedUser = selectedUser.concat(selectedUsers, selectedGroups);
 
-                            // ensure the search found some results
-                            if (!$.isArray(selectedUser) || selectedUser.length === 0) {
-                                nf.Dialog.showOkDialog({
-                                    headerText: 'User Search',
-                                    dialogContent: 'No users match \'' + nf.Common.escapeHtml(tenantSearchTerm) + '\'.'
-                                });
-                            } else if (selectedUser.length > 1) {
-                                nf.Dialog.showOkDialog({
-                                    headerText: 'User Search',
-                                    dialogContent: 'More than one user matches \'' + nf.Common.escapeHtml(tenantSearchTerm) + '\'.'
-                                });
-                            } else if (selectedUser.length === 1) {
-                                var user = selectedUser[0];
-
+                            // add the user to the policy table
+                            var addUser = function (user) {
                                 // add to table and update policy
                                 var policyGrid = $('#policy-table').data('gridInstance');
                                 var policyData = policyGrid.getData();
@@ -104,6 +92,38 @@ nf.PolicyManagement = (function () {
 
                                 // update the policy
                                 updatePolicy();
+                            };
+
+                            // ensure the search found some results
+                            if (!$.isArray(selectedUser) || selectedUser.length === 0) {
+                                nf.Dialog.showOkDialog({
+                                    headerText: 'User Search',
+                                    dialogContent: 'No users match \'' + nf.Common.escapeHtml(tenantSearchTerm) + '\'.'
+                                });
+                            } else if (selectedUser.length > 1) {
+                                var exactMatch = false;
+
+                                // look for an exact match
+                                $.each(selectedUser, function (_, userEntity) {
+                                    if (userEntity.component.identity === tenantSearchTerm) {
+                                        addUser(userEntity);
+                                        exactMatch = true;
+                                        return false;
+                                    }
+                                });
+
+                                // if there is an exact match, use it
+                                if (exactMatch) {
+                                    // close the dialog
+                                    $('#search-users-dialog').modal('hide');
+                                } else {
+                                    nf.Dialog.showOkDialog({
+                                        headerText: 'User Search',
+                                        dialogContent: 'More than one user matches \'' + nf.Common.escapeHtml(tenantSearchTerm) + '\'.'
+                                    });
+                                }
+                            } else if (selectedUser.length === 1) {
+                                addUser(selectedUser[0]);
 
                                 // close the dialog
                                 $('#search-users-dialog').modal('hide');
@@ -210,7 +230,7 @@ nf.PolicyManagement = (function () {
     
     var initPolicyTable = function () {
         // create/override a policy
-        $('#create-policy-link, #override-policy-link').on('click', function () {
+        $('#create-policy-link, #override-policy-link, #add-local-admin-link').on('click', function () {
             createPolicy();
         });
 
@@ -692,65 +712,146 @@ nf.PolicyManagement = (function () {
      */
     var loadPolicy = function () {
         var resourceAndAction = getSelectedResourceAndAction();
-        return $.Deferred(function (deferred) {
-            $.ajax({
-                type: 'GET',
-                url: '../nifi-api/policies/' + resourceAndAction.action + resourceAndAction.resource,
-                dataType: 'json'
-            }).done(function (policyEntity) {
-                // return OK so we either have access to the policy or we don't have access to an inherited policy
 
-                // update the refresh timestamp
-                $('#policy-last-refreshed').text(policyEntity.generated);
+        var policyDeferred;
+        if (resourceAndAction.resource.startsWith('/policies')) {
+            $('#admin-policy-message').show();
 
-                // ensure appropriate actions for the loaded policy
-                if (policyEntity.permissions.canRead === true) {
-                    var policy = policyEntity.component;
+            policyDeferred = $.Deferred(function (deferred) {
+                $.ajax({
+                    type: 'GET',
+                    url: '../nifi-api/policies/' + resourceAndAction.action + resourceAndAction.resource,
+                    dataType: 'json'
+                }).done(function (policyEntity) {
+                    // update the refresh timestamp
+                    $('#policy-last-refreshed').text(policyEntity.generated);
 
-                    $('#policy-message').text(policy.resource);
+                    // ensure appropriate actions for the loaded policy
+                    if (policyEntity.permissions.canRead === true) {
+                        var policy = policyEntity.component;
 
-                    // populate the policy details
-                    populatePolicy(policyEntity);
-                } else {
-                    // reset the policy
-                    resetPolicy();
+                        // if the return policy is for the desired policy (not inherited, show it)
+                        if (resourceAndAction.resource === policy.resource) {
+                            $('#policy-message').text(policy.resource);
 
-                    // since we cannot read, the policy may be inherited or not... we cannot tell
-                    $('#policy-message').text('Not authorized to view the policy.');
+                            // populate the policy details
+                            populatePolicy(policyEntity);
+                        } else {
+                            // reset the policy
+                            resetPolicy();
 
-                    // allow option to override because we don't know if it's supported or not
-                    $('#override-policy-message').show();
-                }
+                            // show an appropriate message
+                            $('#policy-message').text('No component specific administrators.');
 
-                deferred.resolve();
-            }).fail(function (xhr, status, error) {
-                if (xhr.status === 404) {
-                    // reset the policy
-                    resetPolicy();
+                            // we don't know if the user has permissions to the desired policy... show create button and allow the server to decide
+                            $('#add-local-admin-message').show();
+                        }
+                    } else {
+                        // reset the policy
+                        resetPolicy();
 
-                    // show an appropriate message
-                    $('#policy-message').text('No policy for the specified resource.');
+                        // show an appropriate message
+                        $('#policy-message').text('No component specific administrators.');
 
-                    // we don't know if the user has permissions to the desired policy... show create button and allow the server to decide
-                    $('#new-policy-message').show();
-
-                    deferred.resolve();
-                } else if (xhr.status === 403) {
-                    // reset the policy
-                    resetPolicy();
-
-                    // show an appropriate message
-                    $('#policy-message').text('Not authorized to access the policy for the specified resource.');
+                        // we don't know if the user has permissions to the desired policy... show create button and allow the server to decide
+                        $('#add-local-admin-message').show();
+                    }
 
                     deferred.resolve();
-                } else {
-                    resetPolicy();
+                }).fail(function (xhr, status, error) {
+                    if (xhr.status === 404) {
+                        // reset the policy
+                        resetPolicy();
 
-                    deferred.reject();
-                    nf.Common.handleAjaxError(xhr, status, error);
-                }
-            });
-        }).promise();
+                        // show an appropriate message
+                        $('#policy-message').text('No component specific administrators.');
+
+                        // we don't know if the user has permissions to the desired policy... show create button and allow the server to decide
+                        $('#add-local-admin-message').show();
+
+                        deferred.resolve();
+                    } else if (xhr.status === 403) {
+                        // reset the policy
+                        resetPolicy();
+
+                        // show an appropriate message
+                        $('#policy-message').text('Not authorized to access the policy for the specified resource.');
+
+                        deferred.resolve();
+                    } else {
+                        // reset the policy
+                        resetPolicy();
+
+                        deferred.reject();
+                        nf.Common.handleAjaxError(xhr, status, error);
+                    }
+                });
+            }).promise();
+        } else {
+            $('#admin-policy-message').hide();
+
+            policyDeferred = $.Deferred(function (deferred) {
+                $.ajax({
+                    type: 'GET',
+                    url: '../nifi-api/policies/' + resourceAndAction.action + resourceAndAction.resource,
+                    dataType: 'json'
+                }).done(function (policyEntity) {
+                    // return OK so we either have access to the policy or we don't have access to an inherited policy
+
+                    // update the refresh timestamp
+                    $('#policy-last-refreshed').text(policyEntity.generated);
+
+                    // ensure appropriate actions for the loaded policy
+                    if (policyEntity.permissions.canRead === true) {
+                        var policy = policyEntity.component;
+
+                        $('#policy-message').text(policy.resource);
+
+                        // populate the policy details
+                        populatePolicy(policyEntity);
+                    } else {
+                        // reset the policy
+                        resetPolicy();
+
+                        // since we cannot read, the policy may be inherited or not... we cannot tell
+                        $('#policy-message').text('Not authorized to view the policy.');
+
+                        // allow option to override because we don't know if it's supported or not
+                        $('#override-policy-message').show();
+                    }
+
+                    deferred.resolve();
+                }).fail(function (xhr, status, error) {
+                    if (xhr.status === 404) {
+                        // reset the policy
+                        resetPolicy();
+
+                        // show an appropriate message
+                        $('#policy-message').text('No policy for the specified resource.');
+
+                        // we don't know if the user has permissions to the desired policy... show create button and allow the server to decide
+                        $('#new-policy-message').show();
+
+                        deferred.resolve();
+                    } else if (xhr.status === 403) {
+                        // reset the policy
+                        resetPolicy();
+
+                        // show an appropriate message
+                        $('#policy-message').text('Not authorized to access the policy for the specified resource.');
+
+                        deferred.resolve();
+                    } else {
+                        resetPolicy();
+
+                        deferred.reject();
+                        nf.Common.handleAjaxError(xhr, status, error);
+                    }
+                });
+            }).promise();
+        }
+
+        return policyDeferred;
     };
 
     /**
@@ -848,9 +949,13 @@ nf.PolicyManagement = (function () {
                     loadPolicy();
                 }
             }).fail(function (xhr, status, error) {
-                nf.Common.handleAjaxError(xhr, status, error)
+                nf.Common.handleAjaxError(xhr, status, error);
                 resetPolicy();
                 loadPolicy();
+            }).always(function () {
+                nf.Canvas.reload({
+                    'transition': true
+                });
             });
         } else {
             nf.Dialog.showOkDialog({
@@ -880,6 +985,7 @@ nf.PolicyManagement = (function () {
         $('#policy-message').text('');
         $('#new-policy-message').hide();
         $('#override-policy-message').hide();
+        $('#add-local-admin-message').hide();
     };
 
     /**

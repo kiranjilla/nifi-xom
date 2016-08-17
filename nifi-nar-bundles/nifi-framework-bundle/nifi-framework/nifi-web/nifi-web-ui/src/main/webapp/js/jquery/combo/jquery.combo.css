@@ -64,6 +64,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     width: 80%;
+    font-weight: normal;
 }
 
 div.selected-disabled-option {
@@ -74,6 +75,10 @@ div.selected-disabled-option {
 .combo-options ul > li {
     height: 32px;
     padding: 0px 10px;
+}
+
+.combo-options ul > li.disabled {
+    font-style: italic;
 }
 
 .combo-option-text {

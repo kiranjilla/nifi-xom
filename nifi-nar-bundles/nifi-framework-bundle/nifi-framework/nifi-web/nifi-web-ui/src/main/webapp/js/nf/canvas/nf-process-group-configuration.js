@@ -20,10 +20,6 @@
 nf.ProcessGroupConfiguration = (function () {
 
     var config = {
-        filterText: 'Filter',
-        styles: {
-            filterList: 'filter-list'
-        },
         urls: {
             api: '../nifi-api'
         }
@@ -123,6 +119,9 @@ nf.ProcessGroupConfiguration = (function () {
                 url: config.urls.api + '/process-groups/' + encodeURIComponent(groupId),
                 dataType: 'json'
             }).done(function (response) {
+                // store the process group
+                $('#process-group-configuration').data('process-group', response);
+
                 if (response.permissions.canWrite) {
                     var processGroup = response.component;
 
@@ -151,6 +150,17 @@ nf.ProcessGroupConfiguration = (function () {
                 deferred.resolve();
             }).fail(function (xhr, status, error) {
                 if (xhr.status === 403) {
+                    if (groupId === nf.Canvas.getGroupId()) {
+                        $('#process-group-configuration').data('process-group', {
+                            'permissions': {
+                                canRead: false,
+                                canWrite: nf.Canvas.canWrite()
+                            }
+                        });
+                    } else {
+                        $('#process-group-configuration').data('process-group', nf.ProcessGroup.get(groupId));
+                    }
+
                     setUnauthorizedText();
                     setEditable(false);
                     deferred.resolve();
@@ -165,7 +175,12 @@ nf.ProcessGroupConfiguration = (function () {
         var controllerServices = nf.ControllerServices.loadControllerServices(controllerServicesUri, getControllerServicesTable());
         
         // wait for everything to complete
-        return $.when(processGroup, controllerServices).fail(nf.Common.handleAjaxError);
+        return $.when(processGroup, controllerServices).done(function (processGroupResult, controllerServicesResult) {
+            var controllerServicesResponse = controllerServicesResult[0];
+
+            // update the current time
+            $('#process-group-configuration-last-refreshed').text(controllerServicesResponse.currentTime);
+        }).fail(nf.Common.handleAjaxError);
     };
 
     /**
@@ -177,6 +192,9 @@ nf.ProcessGroupConfiguration = (function () {
             reset();
         });
 
+        //reset content to account for possible policy changes
+        $('#process-group-configuration-tabs').find('.selected-tab').click();
+
         // adjust the table size
         nf.ProcessGroupConfiguration.resetTableSize();
     };
@@ -185,6 +203,8 @@ nf.ProcessGroupConfiguration = (function () {
      * Resets the process group configuration dialog.
      */
     var reset = function () {
+        $('#process-group-configuration').removeData('process-group');
+
         // reset button state
         $('#process-group-configuration-save').mouseout();
 
@@ -211,20 +231,28 @@ nf.ProcessGroupConfiguration = (function () {
                     tabContentId: 'process-group-controller-services-tab-content'
                 }],
                 select: function () {
+                    var processGroup = $('#process-group-configuration').data('process-group');
+                    var canWrite = nf.Common.isDefinedAndNotNull(processGroup) ? processGroup.permissions.canWrite : false;
+
                     var tab = $(this).text();
                     if (tab === 'General') {
                         $('#add-process-group-configuration-controller-service').hide();
-                        $('#process-group-configuration-save').show();
+
+                        if (canWrite) {
+                            $('#process-group-configuration-save').show();
+                        } else {
+                            $('#process-group-configuration-save').hide();
+                        }
                     } else {
-                        $('#add-process-group-configuration-controller-service').show();
                         $('#process-group-configuration-save').hide();
 
-                        // update the tooltip on the button
-                        $('#add-process-group-configuration-controller-service').attr('title', function () {
-                            if (tab === 'Controller Services') {
-                                return 'Create a new controller service';
-                            }
-                        });
+                        if (canWrite) {
+                            $('#add-process-group-configuration-controller-service').show();
+                            $('#process-group-controller-services-tab-content').css('top', '32px');
+                        } else {
+                            $('#add-process-group-configuration-controller-service').hide();
+                            $('#process-group-controller-services-tab-content').css('top', '0');
+                        }
 
                         // resize the table
                         nf.ProcessGroupConfiguration.resetTableSize();

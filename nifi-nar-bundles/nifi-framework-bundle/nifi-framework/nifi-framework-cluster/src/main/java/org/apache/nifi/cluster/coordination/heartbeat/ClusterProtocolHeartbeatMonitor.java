@@ -65,6 +65,7 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
     private final String clusterNodesPath;
 
     private volatile Map<String, NodeIdentifier> clusterNodeIds = new HashMap<>();
+    private volatile CuratorFramework curatorClient;
 
     private final String heartbeatAddress;
     private final ConcurrentMap<NodeIdentifier, NodeHeartbeat> heartbeatMessages = new ConcurrentHashMap<>();
@@ -112,8 +113,13 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
     @Override
     public void onStart() {
         final RetryPolicy retryPolicy = new RetryForever(5000);
-        final CuratorFramework curatorClient = CuratorFrameworkFactory.newClient(zkClientConfig.getConnectString(),
-            zkClientConfig.getSessionTimeoutMillis(), zkClientConfig.getConnectionTimeoutMillis(), retryPolicy);
+        curatorClient = CuratorFrameworkFactory.builder()
+            .connectString(zkClientConfig.getConnectString())
+            .sessionTimeoutMs(zkClientConfig.getSessionTimeoutMillis())
+            .connectionTimeoutMs(zkClientConfig.getConnectionTimeoutMillis())
+            .retryPolicy(retryPolicy)
+            .defaultData(new byte[0])
+            .build();
         curatorClient.start();
 
         // We don't know what the heartbeats look like for the nodes, since we were just elected to monitoring
@@ -136,20 +142,19 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
                     try {
                         try {
                             curatorClient.setData().forPath(path, heartbeatAddress.getBytes(StandardCharsets.UTF_8));
-                            curatorClient.close();
                             logger.info("Successfully published Cluster Heartbeat Monitor Address of {} to ZooKeeper", heartbeatAddress);
                             return;
                         } catch (final NoNodeException nne) {
                             // ensure that parents are created, using a wide-open ACL because the parents contain no data
                             // and the path is not in any way sensitive.
                             try {
-                                curatorClient.create().creatingParentContainersIfNeeded().forPath(path);
+                                curatorClient.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path);
                             } catch (final NodeExistsException nee) {
                                 // This is okay. Node already exists.
                             }
 
                             curatorClient.create().withMode(CreateMode.EPHEMERAL).forPath(path, heartbeatAddress.getBytes(StandardCharsets.UTF_8));
-                            logger.info("Successfully created node in ZooKeeper with path {}", path);
+                            logger.info("Successfully published address as heartbeat monitor address at path {} with value {}", path, heartbeatAddress);
 
                             return;
                         }
@@ -174,6 +179,9 @@ public class ClusterProtocolHeartbeatMonitor extends AbstractHeartbeatMonitor im
 
     @Override
     public void onStop() {
+        if (curatorClient != null) {
+            curatorClient.close();
+        }
     }
 
     @Override

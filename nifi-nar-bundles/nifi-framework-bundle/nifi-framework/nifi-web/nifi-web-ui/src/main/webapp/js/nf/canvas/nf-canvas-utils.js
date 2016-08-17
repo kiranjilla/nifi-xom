@@ -482,8 +482,20 @@ nf.CanvasUtils = (function () {
                 tip.remove();
             }
 
-            // if there are bulletins show them, otherwise hide
+            var hasBulletins = false;
             if (!nf.Common.isEmpty(d.bulletins)) {
+                // format the bulletins
+                var bulletins = nf.Common.getFormattedBulletins(d.bulletins);
+                hasBulletins = bulletins.length > 0;
+
+                if (hasBulletins) {
+                    // create the unordered list based off the formatted bulletins
+                    var list = nf.Common.formatUnorderedList(bulletins);
+                }
+            }
+
+            // if there are bulletins show them, otherwise hide
+            if (hasBulletins) {
                 // update the tooltip
                 selection.select('text.bulletin-icon')
                         .each(function () {
@@ -494,16 +506,7 @@ nf.CanvasUtils = (function () {
                                     })
                                     .attr('class', 'tooltip nifi-tooltip')
                                     .html(function () {
-                                        // format the bulletins
-                                        var bulletins = nf.Common.getFormattedBulletins(d.bulletins);
-
-                                        // create the unordered list based off the formatted bulletins
-                                        var list = nf.Common.formatUnorderedList(bulletins);
-                                        if (list === null || list.length === 0) {
-                                            return '';
-                                        } else {
-                                            return $('<div></div>').append(list).html();
-                                        }
+                                        return $('<div></div>').append(list).html();
                                     });
 
                             // add the tooltip
@@ -933,6 +936,10 @@ nf.CanvasUtils = (function () {
             if (selection.size() !== 1) {
                 return false;
             }
+
+            if (nf.CanvasUtils.isProcessGroup(selection)) {
+                return true;
+            }
             if (nf.CanvasUtils.canRead(selection) === false || nf.CanvasUtils.canModify(selection) === false) {
                 return false;
             }
@@ -953,16 +960,19 @@ nf.CanvasUtils = (function () {
             if (selection.size() !== 1) {
                 return false;
             }
+
+            if (nf.CanvasUtils.isProcessGroup(selection)) {
+                return true;
+            }
             if (nf.CanvasUtils.canRead(selection) === false) {
                 return false;
             }
-
             if (nf.CanvasUtils.canModify(selection)) {
                 if (nf.CanvasUtils.isProcessor(selection) || nf.CanvasUtils.isInputPort(selection) || nf.CanvasUtils.isOutputPort(selection) || nf.CanvasUtils.isRemoteProcessGroup(selection) || nf.CanvasUtils.isConnection(selection)) {
                     return !nf.CanvasUtils.isConfigurable(selection);
                 }
             } else {
-                return nf.CanvasUtils.isProcessor(selection) || nf.CanvasUtils.isConnection(selection) || nf.CanvasUtils.isProcessGroup(selection) || nf.CanvasUtils.isInputPort(selection) || nf.CanvasUtils.isOutputPort(selection) || nf.CanvasUtils.isRemoteProcessGroup(selection);
+                return nf.CanvasUtils.isProcessor(selection) || nf.CanvasUtils.isConnection(selection) || nf.CanvasUtils.isInputPort(selection) || nf.CanvasUtils.isOutputPort(selection) || nf.CanvasUtils.isRemoteProcessGroup(selection);
             }
 
             return false;
@@ -1184,11 +1194,11 @@ nf.CanvasUtils = (function () {
                     if (sourceData.permissions.canRead) {
                         // update the source status if necessary
                         if (nf.CanvasUtils.isProcessor(source)) {
-                            nf.Processor.reload(sourceData.component);
+                            nf.Processor.reload(sourceData.id);
                         } else if (nf.CanvasUtils.isInputPort(source)) {
-                            nf.Port.reload(sourceData.component);
+                            nf.Port.reload(sourceData.id);
                         } else if (nf.CanvasUtils.isRemoteProcessGroup(source)) {
-                            nf.RemoteProcessGroup.reload(sourceData.component);
+                            nf.RemoteProcessGroup.reload(sourceData.id);
                         }
                     }
                 }
@@ -1202,9 +1212,9 @@ nf.CanvasUtils = (function () {
                     if (destinationData.permissions.canRead) {
                         // update the destination component accordingly
                         if (nf.CanvasUtils.isProcessor(destination)) {
-                            nf.Processor.reload(destinationData.component);
+                            nf.Processor.reload(destinationData.id);
                         } else if (nf.CanvasUtils.isRemoteProcessGroup(destination)) {
-                            nf.RemoteProcessGroup.reload(destinationData.component);
+                            nf.RemoteProcessGroup.reload(destinationData.id);
                         }
                     }
                 }
@@ -1361,7 +1371,7 @@ nf.CanvasUtils = (function () {
             // move the components into the destination and...
             moveComponents(components, groupData.id).done(function () {
                 // reload the target group
-                nf.ProcessGroup.reload(groupData.component);
+                nf.ProcessGroup.reload(groupData.id);
             });
         },
         
