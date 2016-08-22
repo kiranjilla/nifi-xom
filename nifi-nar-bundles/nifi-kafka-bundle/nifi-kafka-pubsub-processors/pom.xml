@@ -39,14 +39,14 @@
             <artifactId>nifi-ssl-context-service-api</artifactId>
         </dependency>
         <dependency>
-		    <groupId>org.apache.kafka</groupId>
-		    <artifactId>kafka-clients</artifactId>
-		    <version>0.9.0.1</version>
-		</dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka9.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka_2.10</artifactId>
-            <version>0.9.0.1</version>
+            <version>${kafka9.version}</version>
             <exclusions>
                 <!-- Transitive dependencies excluded because they are located
                 in a legacy Maven repository, which Maven 3 doesn't support. -->
