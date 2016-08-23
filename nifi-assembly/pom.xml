@@ -133,6 +133,11 @@ language governing permissions and limitations under the License. -->
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-datadog-nar</artifactId>
+            <type>nar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-standard-nar</artifactId>
             <type>nar</type>
         </dependency>
@@ -367,7 +372,6 @@ language governing permissions and limitations under the License. -->
             <type>nar</type>
         </dependency>
     </dependencies>
-
     <profiles>
         <profile>
             <id>rpm</id>
