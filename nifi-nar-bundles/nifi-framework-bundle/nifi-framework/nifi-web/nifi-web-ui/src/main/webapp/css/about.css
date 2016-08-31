@@ -18,12 +18,16 @@
     overflow: hidden;
     width: 500px;
     height: 500px;
-    max-height: 450px;
+    max-height: 500px;
+}
+
+#nf-about .dialog-header {
+    background-color: #3fae2a;
 }
 
 #nf-about-pic {
     height: 50%;
-    background: url(../images/nifi-logo-about.svg) #000000 no-repeat center center;
+    background: url(../images/hwx-logo.svg) #000000 no-repeat center center;
     top: 25%;
     position: relative;
 }
@@ -39,10 +43,11 @@
 }
 
 #nf-about-content p {
-    padding-top: 9px;
+    padding-top: 15px;
     padding-bottom: 9px;
     font-size: 15px;
     line-height: 15px;
+    margin-left: 68px;
 }
 
 #nf-about-content span.link {

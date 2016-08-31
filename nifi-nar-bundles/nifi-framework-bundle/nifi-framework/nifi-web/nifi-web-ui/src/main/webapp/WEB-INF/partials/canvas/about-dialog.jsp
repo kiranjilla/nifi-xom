@@ -17,16 +17,20 @@
 <%@ page contentType="text/html" pageEncoding="UTF-8" session="false" %>
 <div id="nf-about">
     <div id="nf-about-pic-container">
+        <img src="images/hdf-icon.svg" style="position: absolute; top: 65px; left: 20px; width: 48px; z-index: 1;">
+        <p style="position: absolute; top: 85px; left: 77px; z-index: 1; color: #fff; font-size: 13px; ">Version 2.0</p>
         <div id="nf-about-pic"></div>
     </div>
     <div class="dialog-content">
         <div id="nf-about-content">
-            <span id="nf-version"></span>
+            <span id="nf-version">Powered by Apache NiFi - Version </span>
+            <img src="images/nifi-drop.svg" style="position: absolute; top: 30px; left: 0px; width: 48px;">
             <p>
-                Apache NiFi is a framework to support highly scalable and flexible dataflows.
-                It can be run on on laptops up through clusters of enterprise class servers.
-                Instead of dictating a particular dataflow or behavior it empowers you to design your own
-                optimal dataflow tailored to your specific environment.
+                Apache NiFi supports highly scalable and flexible dataflows.
+                It runs on laptops up through clusters of enterprise class
+                servers. Instead of dictating a particular dataflow or behavior,
+                it empowers the design of optimal dataflows tailored to
+                specific environments.
             </p>
         </div>
     </div>
