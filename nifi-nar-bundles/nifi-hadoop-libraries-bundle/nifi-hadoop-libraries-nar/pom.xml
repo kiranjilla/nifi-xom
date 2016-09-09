@@ -21,6 +21,7 @@
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <source.skip>true</source.skip>
         <curator.version>2.11.0</curator.version>
+        <jackson.version>2.6.1</jackson.version>
     </properties>
     <dependencies>
         <dependency>
@@ -52,6 +53,12 @@
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-client</artifactId>
             <version>${curator.version}</version>
+        </dependency>
+        <!-- Hadoop brings in jackson-core 2.2.3 but 2.6.1 is needed for ConvertJSONtoAvro, e.g. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
     </dependencies>
 </project>
