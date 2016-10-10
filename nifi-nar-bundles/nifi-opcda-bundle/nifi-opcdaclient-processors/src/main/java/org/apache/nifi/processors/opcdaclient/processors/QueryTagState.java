@@ -261,7 +261,8 @@ public class QueryTagState extends AbstractProcessor {
 					Group opcGroup = server.findGroup(groupName);
 					
 					if (opcGroup.isActive()){
-						this.getLogger().info("existing Group");						
+						this.getLogger().info("existing Group");
+						throw new UnknownGroupException("Forced");
 					}
 					Item item1 = opcGroup.findItemByClientHandle(clientId);
 					ItemState is = item1.read(false);
