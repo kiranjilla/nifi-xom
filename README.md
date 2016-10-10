@@ -173,3 +173,6 @@ http://www.jasypt.org/faq.html
 http://jcraft.com/c-info.html
 http://www.oracle.com/us/products/export/export-regulations-345813.html
 for more details on each of these libraries cryptography features.
+=======
+# nifi
+HWX NiFi private repository
