@@ -27,16 +27,30 @@ import org.apache.nifi.util.TestRunners;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Properties;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.InputStream;
+
 
 public class QueryTagStateTest {
 
     private TestRunner testRunner;
+
+    private Properties props = new Properties();
 
     @Before
     public void init() {
         testRunner = TestRunners.newTestRunner(QueryTagState.class);
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", java.util.logging.Level.INFO.toString());
         java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
+	InputStream is = ClassLoader.getSystemResourceAsStream("test.properties");
+        try {
+                props.load(is);
+        }
+        catch (IOException e) {
+         // Handle exception here
+        }
     }
 
     
@@ -46,14 +60,16 @@ public class QueryTagStateTest {
     	List<MockFlowFile> flowFiles  = null;
         final TestRunner runner = TestRunners.newTestRunner(new QueryTagState());
 
-        runner.setProperty(QueryTagState.OPCDA_SERVER_IP_NAME, "targetopc.l3network.local");
-        runner.setProperty(QueryTagState.OPCDA_WORKGROUP_NAME, "WORKGROUP");
-        runner.setProperty(QueryTagState.OPCDA_USER_NAME, "bamboo");
-        runner.setProperty(QueryTagState.OPCDA_PASSWORD_TEXT, "paper");
-        runner.setProperty(QueryTagState.OPCDA_CLASS_ID_NAME, "B3AF0BF6-4C0C-4804-A1222-6F3B160F4397");
-        runner.setProperty(QueryTagState.READ_TIMEOUT_MS_ATTRIBUTE, "60000");
-        runner.setProperty(QueryTagState.POLL_REPEAT_MS_ATTRIBUTE, "3600000");
-        runner.setProperty(QueryTagState.IS_ASYNC_ATTRIBUTE,"Y");
+	runner.setProperty(FetchTagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
+        runner.setProperty(FetchTagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
+        runner.setProperty(FetchTagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
+        runner.setProperty(FetchTagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
+        runner.setProperty(FetchTagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
+
+        runner.setProperty(QueryTagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
+        runner.setProperty(QueryTagState.POLL_REPEAT_MS_ATTRIBUTE, (String) props.get("poll.repeat.ms.attribute"));
+        runner.setProperty(QueryTagState.IS_ASYNC_ATTRIBUTE, (String) props.get("is.async.attribute"));
+
         Map<String, String> attributes1 = new HashMap<String,String>();
         attributes1.put("groupName", "FU-13");
         //attributes1.put("fragment.index", "1");
