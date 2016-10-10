@@ -59,7 +59,7 @@ public class QueryTagStateTest {
         //attributes1.put("fragment.index", "1");
         runner.enqueue("Channel1.Device1.Tag10\n_System._ProjectTitle\n_System._TotalTagCount\n_System._DateTime\n_System._ActiveTagCount\n", attributes1);
         Map<String, String> attributes2 = new HashMap<String,String>();
-        attributes2.put("groupName", "FU-14");
+        attributes2.put("groupName", "FU-13");
         runner.enqueue("Channel1.Device1.Tag1000\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1001\nChannel1.Device1.Tag10001\n",attributes2);
         Map<String, String> attributes3 = new HashMap<String,String>();
         attributes3.put("groupName", "FU-15");
@@ -89,10 +89,10 @@ public class QueryTagStateTest {
         //Server ns=0 -> ServerStatus (2256 parent) -> CurrentTime NodeId=2258  
         //runner.setProperty(PollOpcUaProcessor.NODE_ID_ATTRIBUTE, "ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258");
         
-        runner.setThreadCount(20);
-        runner.run(10,true,true);
+        runner.setThreadCount(2);
+        runner.run(4,true,true);
         
-        runner.assertQueueEmpty();
+        //runner.assertQueueEmpty();
         flowFiles = runner.getFlowFilesForRelationship(QueryTagState.REL_SUCCESS);
         //runner.assertAllFlowFilesTransferred(QueryTagState.REL_SUCCESS, 4);
         runner.assertTransferCount(QueryTagState.REL_SUCCESS, 10);

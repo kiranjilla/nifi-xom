@@ -19,6 +19,8 @@ package org.apache.nifi.processors.opcdaclient.processors;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.UnknownHostException;
+import java.rmi.activation.UnknownGroupException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,8 +57,11 @@ import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.processors.opcdaclient.util.OPCInitialTagConfig;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
+import org.openscada.opc.lib.common.NotConnectedException;
 import org.openscada.opc.lib.da.AutoReconnectController;
+import org.openscada.opc.lib.da.Group;
 import org.openscada.opc.lib.da.Item;
+import org.openscada.opc.lib.da.ItemState;
 import org.openscada.opc.lib.da.Server;
 
 @Tags({"opc da tag state query"})
@@ -162,6 +167,8 @@ public class QueryTagState extends AbstractProcessor {
     private  Server server;
     	        
     private  AutoReconnectController controller;	
+    
+    private int clientId;
 
     @Override
     protected void init(final ProcessorInitializationContext context) {
@@ -250,7 +257,16 @@ public class QueryTagState extends AbstractProcessor {
 				Map<String, Item> opcTags = new HashMap<String, Item>();
 				List<String> itemIds = new ArrayList<String>();
 				String groupName = flowfile.getAttribute("groupName");
-					session.read(flowfile, new InputStreamCallback() {
+				try {
+					Group opcGroup = server.findGroup(groupName);
+					
+					if (opcGroup.isActive()){
+						this.getLogger().info("existing Group");						
+					}
+					Item item1 = opcGroup.findItemByClientHandle(clientId);
+					ItemState is = item1.read(false);
+				} catch (org.openscada.opc.lib.da.UnknownGroupException e) {
+				session.read(flowfile, new InputStreamCallback() {
 						public void process(InputStream in) throws IOException {
 							try {
 								if (itemIds.isEmpty()) {
@@ -267,8 +283,9 @@ public class QueryTagState extends AbstractProcessor {
 							new Object[] { flowfile.getAttribute("groupName"), itemIds.size() });
 					opcTags = OPCInitialTagConfig.getInstance().fetchSpecificTagsMap(server,
 							groupName, opcTags, itemIds, this.getLogger());
-
-								
+					clientId = opcTags.get(itemIds.get(0)).getClientHandle();
+				
+				}
 				String output = OPCInitialTagConfig.getInstance().fetchTagState(opcTags, this.getLogger());
 
 				this.getLogger().info("***** for group {} Output-\n{}",
