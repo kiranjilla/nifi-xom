@@ -89,8 +89,8 @@ public class QueryTagStateTest {
         //Server ns=0 -> ServerStatus (2256 parent) -> CurrentTime NodeId=2258  
         //runner.setProperty(PollOpcUaProcessor.NODE_ID_ATTRIBUTE, "ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258");
         
-        runner.setThreadCount(2);
-        runner.run(4,true,true);
+        runner.setThreadCount(22);
+        runner.run(40,true,true);
         
         //runner.assertQueueEmpty();
         flowFiles = runner.getFlowFilesForRelationship(QueryTagState.REL_SUCCESS);
