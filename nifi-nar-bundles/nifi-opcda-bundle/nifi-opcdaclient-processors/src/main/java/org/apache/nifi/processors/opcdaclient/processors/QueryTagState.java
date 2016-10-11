@@ -282,7 +282,7 @@ public class QueryTagState extends AbstractProcessor {
 		});
 
 		// ToDo
-		session.putAttribute(flowFile, "filename", key);
+		//session.putAttribute(flowFile, "filename", key);
 		// session.getProvenanceReporter().receive(flowFile, "OPC");
 
 		session.transfer(flowFile, REL_SUCCESS);
