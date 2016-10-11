@@ -248,6 +248,9 @@ public class QueryTagState extends AbstractProcessor {
 						// session.transfer(flowfile,REL_SINK);
 						createFlowFile(groupName, output, session, context);
 					}
+					
+					OPCInitialTagConfig.getInstance().unregisterGroup(server, groupName, this.getLogger());
+					
 				} else {
 					session.remove(flowfile);
 
