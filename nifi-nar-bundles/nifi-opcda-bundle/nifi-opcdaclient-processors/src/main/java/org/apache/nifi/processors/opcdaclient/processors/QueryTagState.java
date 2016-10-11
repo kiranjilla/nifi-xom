@@ -236,6 +236,7 @@ public class QueryTagState extends AbstractProcessor {
 				opcTags = OPCInitialTagConfig.getInstance().fetchSpecificTagsMap(server, groupName, opcTags, itemIds,
 						this.getLogger());
 				// clientId = opcTags.get(itemIds.get(0)).getClientHandle();
+				session.remove(flowfile);
 
 				if (!opcTags.isEmpty()) {
 					String output = OPCInitialTagConfig.getInstance().fetchTagState(opcTags, this.getLogger());
@@ -244,7 +245,6 @@ public class QueryTagState extends AbstractProcessor {
 					if (output.isEmpty()) {
 						session.transfer(flowfile, REL_FAILURE);
 					} else {
-						session.remove(flowfile);
 						// session.transfer(flowfile,REL_SINK);
 						createFlowFile(groupName, output, session, context);
 					}
@@ -252,8 +252,7 @@ public class QueryTagState extends AbstractProcessor {
 					OPCInitialTagConfig.getInstance().unregisterGroup(server, groupName, this.getLogger());
 					
 				} else {
-					session.remove(flowfile);
-
+					//do nothing
 				}
 
 			} catch (Exception e) {
@@ -276,7 +275,7 @@ public class QueryTagState extends AbstractProcessor {
 		this.getLogger().debug("---->Response from Server - node/group info [{}] received {}",
 				new Object[] { key, value });
 		FlowFile flowFile = session.create();
-
+		
 		flowFile = session.write(flowFile, new OutputStreamCallback() {
 			@Override
 			public void process(final OutputStream outStream) throws IOException {
@@ -290,6 +289,7 @@ public class QueryTagState extends AbstractProcessor {
 		});
 
 		// ToDo
+		session.putAttribute(flowFile, "filename", key);
 		// session.getProvenanceReporter().receive(flowFile, "OPC");
 
 		session.transfer(flowFile, REL_SUCCESS);

@@ -17,9 +17,11 @@
 package org.apache.nifi.processors.opcdaclient.processors;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.nifi.util.MockFlowFile;
 import org.apache.nifi.util.TestRunner;
@@ -76,7 +78,7 @@ public class QueryTagStateTest {
         runner.enqueue("Channel1.Device1.Tag10\n_System._ProjectTitle\n_System._TotalTagCount\n_System._DateTime\n_System._ActiveTagCount\n", attributes1);
         Map<String, String> attributes2 = new HashMap<String,String>();
         attributes2.put("groupName", "FU-14");
-        runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1001\nChannel1.Device1.Tag11\n",attributes2);
+        runner.enqueue("Channel1.Device1.Tag1000\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1001\nChannel1.Device1.Tag10001\n",attributes2);
         Map<String, String> attributes3 = new HashMap<String,String>();
         attributes3.put("groupName", "FU-15");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10002\nChannel1.Device1.Tag10003\n",attributes3);
@@ -105,8 +107,8 @@ public class QueryTagStateTest {
         //Server ns=0 -> ServerStatus (2256 parent) -> CurrentTime NodeId=2258  
         //runner.setProperty(PollOpcUaProcessor.NODE_ID_ATTRIBUTE, "ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258");
         
-        runner.setThreadCount(10);
-        runner.run(20,true,true);
+        runner.setThreadCount(22);
+        runner.run(40,true,true);
         
         //runner.assertQueueEmpty();
         flowFiles = runner.getFlowFilesForRelationship(QueryTagState.REL_SUCCESS);
