@@ -19,8 +19,6 @@ package org.apache.nifi.processors.opcdaclient.processors;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.UnknownHostException;
-import java.rmi.activation.UnknownGroupException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -57,11 +55,8 @@ import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.processors.opcdaclient.util.OPCInitialTagConfig;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
-import org.openscada.opc.lib.common.NotConnectedException;
 import org.openscada.opc.lib.da.AutoReconnectController;
-import org.openscada.opc.lib.da.Group;
 import org.openscada.opc.lib.da.Item;
-import org.openscada.opc.lib.da.ItemState;
 import org.openscada.opc.lib.da.Server;
 
 @Tags({ "opc da tag state query" })
@@ -128,8 +123,6 @@ public class QueryTagState extends AbstractProcessor {
 	private Server server;
 
 	private AutoReconnectController controller;
-
-	private int clientId;
 
 	@Override
 	protected void init(final ProcessorInitializationContext context) {

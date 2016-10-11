@@ -1,6 +1,7 @@
 package org.apache.nifi.processors.opcdaclient.util;
 
 import java.math.BigDecimal;
+
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.core.JIArray;
 import org.jinterop.dcom.core.JICurrency;
