@@ -41,6 +41,8 @@ import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
+import org.apache.nifi.distributed.cache.client.Deserializer;
+import org.apache.nifi.distributed.cache.client.DistributedMapCacheClient;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.AbstractProcessor;
@@ -59,6 +61,10 @@ import org.openscada.opc.lib.da.AutoReconnectController;
 import org.openscada.opc.lib.da.Item;
 import org.openscada.opc.lib.da.Server;
 
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.ser.std.ByteArraySerializer;
+import com.fasterxml.jackson.databind.ser.std.StringSerializer;
+
 @Tags({ "opc da tag state query" })
 @CapabilityDescription("Polls OPC DA Server and create flow file")
 @InputRequirement(Requirement.INPUT_ALLOWED)
@@ -72,6 +78,13 @@ public class QueryTagState extends AbstractProcessor {
 			.expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
 			.addValidator(StandardValidators.URI_VALIDATOR).build();
 
+	public static final PropertyDescriptor DISTRIBUTED_CACHE_SERVICE = new PropertyDescriptor.Builder()
+            .name("Distributed Cache Service")
+            .description("The Controller Service that is used to cache unique identifiers, used to determine duplicates")
+            .required(true)
+            .identifiesControllerService(DistributedMapCacheClient.class)
+            .build();
+	
 	public static final PropertyDescriptor OPCDA_WORKGROUP_NAME = new PropertyDescriptor.Builder()
 			.name("OPCDA_WORKGROUP_NAME").description("OPC DA Server Work Group Name").required(true)
 			.expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
@@ -242,6 +255,8 @@ public class QueryTagState extends AbstractProcessor {
 						createFlowFile(groupName, output, session, context);
 					}
 					
+			        final DistributedMapCacheClient cache = context.getProperty(DISTRIBUTED_CACHE_SERVICE).asControllerService(DistributedMapCacheClient.class);
+			        //Object currentValue = cache.get(groupName, new StringSerializer(), new JsonDeserializer<ArrayList>());
 					OPCInitialTagConfig.getInstance().unregisterGroup(server, groupName, this.getLogger());
 					
 				} else {
