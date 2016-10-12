@@ -71,7 +71,7 @@ public class QueryTagStateTest {
 		Map<String, String> attributes2 = new HashMap<String, String>();
 		attributes2.put("groupName", "FU-14");
 		runner.enqueue(
-				"Channel1.Device1.Tag1000\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1001\nChannel1.Device1.Tag10001\n",
+				"Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1001\nChannel1.Device1.Tag10001\n",
 				attributes2);
 		Map<String, String> attributes3 = new HashMap<String, String>();
 		attributes3.put("groupName", "FU-15");
