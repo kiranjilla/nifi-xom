@@ -25,23 +25,23 @@ import org.openscada.opc.lib.da.browser.Leaf;
 import org.openscada.opc.lib.da.browser.TreeBrowser;
 
 public class OPCInitialTagConfig {
-	private static OPCInitialTagConfig instance = null;
+//	private static OPCInitialTagConfig instance = null;
 	public static final String NO_SUBGROUP_MSG = "Unable to find sub-group: %s %nPossible Matches:%s";
 	public static final String ERROR_CODE = "errorCode";
 	public static final String QUALITY = "quality";
 	public static final String TIMESTAMP = "timestamp";
 	public static final String VALUE = "value";
 
-	public static OPCInitialTagConfig getInstance() {
-		if (instance == null) {
-			synchronized (OPCInitialTagConfig.class) {
-				instance = new OPCInitialTagConfig();
-			}
-		}
-		return instance;
-	}
+//	public static OPCInitialTagConfig getInstance() {
+//		if (instance == null) {
+//			synchronized (OPCInitialTagConfig.class) {
+//				instance = new OPCInitialTagConfig();
+//			}
+//		}
+//		return instance;
+//	}
 
-	public synchronized String fetchTagState(Map<String, Item> opcTags, ComponentLog logger) throws JIException {
+	public String fetchTagState(Map<String, Item> opcTags, ComponentLog logger) throws JIException {
 		Map<String, Map<String, Object>> data = new TreeMap<String, Map<String, Object>>();
 		TimeZone timeZone = TimeZone.getTimeZone("UTC");
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EE MMM dd HH:mm:ss zzz yyyy", Locale.US);
@@ -77,7 +77,7 @@ public class OPCInitialTagConfig {
 		return retVal;
 	}
 
-	public synchronized Map<String, Item> fetchSpecificTagsMap(Server server, String groupName,
+	public  Map<String, Item> fetchSpecificTagsMap(Server server, String groupName,
 			Map<String, Item> opcItems, List<String> specificItemIds, ComponentLog logger) throws Exception {
 		Group opcGroup = null;
 		// Map<String, Item> opcItems = new HashMap<String, Item>();
@@ -172,7 +172,7 @@ public class OPCInitialTagConfig {
 		// }
 	}
 
-	public synchronized void unregisterGroup(Server server, String groupName, ComponentLog logger) throws JIException {
+	public  void unregisterGroup(Server server, String groupName, ComponentLog logger) throws JIException {
 		Group opcGroup;
 		try {
 			logger.info("Trying to Unregister Group []", new Object[] { groupName });

@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 
+import javax.annotation.processing.SupportedOptions;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
@@ -41,8 +43,6 @@ import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
-import org.apache.nifi.distributed.cache.client.Deserializer;
-import org.apache.nifi.distributed.cache.client.DistributedMapCacheClient;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.AbstractProcessor;
@@ -56,14 +56,11 @@ import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.processors.opcdaclient.util.OPCInitialTagConfig;
 import org.jinterop.dcom.common.JIException;
+import org.jinterop.dcom.common.JISystem;
 import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.da.AutoReconnectController;
 import org.openscada.opc.lib.da.Item;
 import org.openscada.opc.lib.da.Server;
-
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ser.std.ByteArraySerializer;
-import com.fasterxml.jackson.databind.ser.std.StringSerializer;
 
 @Tags({ "opc da tag state query" })
 @CapabilityDescription("Polls OPC DA Server and create flow file")
@@ -78,13 +75,6 @@ public class QueryTagState extends AbstractProcessor {
 			.expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
 			.addValidator(StandardValidators.URI_VALIDATOR).build();
 
-	public static final PropertyDescriptor DISTRIBUTED_CACHE_SERVICE = new PropertyDescriptor.Builder()
-            .name("Distributed Cache Service")
-            .description("The Controller Service that is used to cache unique identifiers, used to determine duplicates")
-            .required(true)
-            .identifiesControllerService(DistributedMapCacheClient.class)
-            .build();
-	
 	public static final PropertyDescriptor OPCDA_WORKGROUP_NAME = new PropertyDescriptor.Builder()
 			.name("OPCDA_WORKGROUP_NAME").description("OPC DA Server Work Group Name").required(true)
 			.expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
@@ -129,6 +119,9 @@ public class QueryTagState extends AbstractProcessor {
 	public static final Relationship REL_RETRY = new Relationship.Builder().name("retry")
 			.description("The FlowFile with transformed content will be retried to this relationship").build();
 
+	public static final Relationship REL_SINK = new Relationship.Builder().name("sink")
+			.description("The FlowFile with original content will be send to this relationship").build();
+
 	private List<PropertyDescriptor> descriptors;
 
 	private Set<Relationship> relationships;
@@ -154,6 +147,7 @@ public class QueryTagState extends AbstractProcessor {
 		relationships.add(REL_SUCCESS);
 		relationships.add(REL_FAILURE);
 		relationships.add(REL_RETRY);
+		relationships.add(REL_SINK);
 		this.relationships = Collections.unmodifiableSet(relationships);
 
 	}
@@ -184,6 +178,10 @@ public class QueryTagState extends AbstractProcessor {
 			ci.setClsid(context.getProperty(OPCDA_CLASS_ID_NAME).getValue());
 			// if ProgId is not working, try it using the Clsid instead
 			// ci.setClsid("B3AF0BF6-4C0C-4804-A1222-6F3B160F4397");
+			//JISystem.setInBuiltLogHandler(false);
+		    //JISystem.setJavaCoClassAutoCollection(false);
+		    //JISystem.setAutoRegisteration(false);
+		    java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
 			server = new Server(ci, Executors.newScheduledThreadPool(1000));
 			controller = new AutoReconnectController(server);
 
@@ -194,7 +192,7 @@ public class QueryTagState extends AbstractProcessor {
 		} catch (Exception e) {
 			this.getLogger().error("*****OnScheduled creating Client error {} [{}]",
 					new Object[] { e.getMessage(), e.getStackTrace() });
-			context.yield();
+			//context.yield();
 		}
 
 	}
@@ -222,6 +220,7 @@ public class QueryTagState extends AbstractProcessor {
 			String groupName = flowfile.getAttribute("groupName");
 			Map<String, Item> opcTags = new HashMap<String, Item>();
 			List<String> itemIds = new ArrayList<String>();
+			OPCInitialTagConfig opcConfigHelper = new OPCInitialTagConfig();
 			try {
 
 				session.read(flowfile, new InputStreamCallback() {
@@ -239,28 +238,30 @@ public class QueryTagState extends AbstractProcessor {
 
 				this.getLogger().info("*****Creating a new group with itemIds-{}",
 						new Object[] { flowfile.getAttribute("groupName"), itemIds.size() });
-				opcTags = OPCInitialTagConfig.getInstance().fetchSpecificTagsMap(server, groupName, opcTags, itemIds,
+				opcTags = opcConfigHelper.fetchSpecificTagsMap(server, groupName, opcTags, itemIds,
 						this.getLogger());
-				// clientId = opcTags.get(itemIds.get(0)).getClientHandle();
-				session.remove(flowfile);
+
+				//Troy
+				//session.transfer(flowfile,REL_SINK);
+				//session.remove(flowfile);
 
 				if (!opcTags.isEmpty()) {
-					String output = OPCInitialTagConfig.getInstance().fetchTagState(opcTags, this.getLogger());
+					String output = opcConfigHelper.fetchTagState(opcTags, this.getLogger());
 
 					this.getLogger().info("***** for group {} Output-\n{}", new Object[] { groupName, output });
 					if (output.isEmpty()) {
 						session.transfer(flowfile, REL_FAILURE);
 					} else {
 						// session.transfer(flowfile,REL_SINK);
-						createFlowFile(groupName, output, session, context);
+						createFlowFile(flowfile, groupName, output, session, context);
 					}
-					
-			        final DistributedMapCacheClient cache = context.getProperty(DISTRIBUTED_CACHE_SERVICE).asControllerService(DistributedMapCacheClient.class);
-			        //Object currentValue = cache.get(groupName, new StringSerializer(), new JsonDeserializer<ArrayList>());
-					OPCInitialTagConfig.getInstance().unregisterGroup(server, groupName, this.getLogger());
-					
+
+					// Object currentValue = cache.get(groupName, new
+					// StringSerializer(), new JsonDeserializer<ArrayList>());
+					opcConfigHelper.unregisterGroup(server, groupName, this.getLogger());
+
 				} else {
-					//do nothing
+					// do nothing
 				}
 
 			} catch (Exception e) {
@@ -272,17 +273,19 @@ public class QueryTagState extends AbstractProcessor {
 					// session.remove(flowfile);
 					session.transfer(flowfile, REL_FAILURE);
 				}
-				context.yield();
+				//context.yield();
 			}
 		}
 
 	}
 
-	private void createFlowFile(String key, Object value, ProcessSession session, ProcessContext context)
+	private void createFlowFile(FlowFile flowFile, String key, Object value, ProcessSession session, ProcessContext context)
 			throws JIException {
 		this.getLogger().debug("---->Response from Server - node/group info [{}] received {}",
 				new Object[] { key, value });
-		FlowFile flowFile = session.create();
+		if (flowFile == null) {
+			flowFile = session.create();
+		}
 		
 		flowFile = session.write(flowFile, new OutputStreamCallback() {
 			@Override
@@ -297,7 +300,7 @@ public class QueryTagState extends AbstractProcessor {
 		});
 
 		// ToDo
-		//session.putAttribute(flowFile, "filename", key);
+		// session.putAttribute(flowFile, "filename", key);
 		// session.getProvenanceReporter().receive(flowFile, "OPC");
 
 		session.transfer(flowFile, REL_SUCCESS);

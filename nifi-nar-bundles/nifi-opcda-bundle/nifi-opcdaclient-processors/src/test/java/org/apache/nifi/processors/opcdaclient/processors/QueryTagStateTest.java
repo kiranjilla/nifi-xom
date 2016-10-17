@@ -36,8 +36,8 @@ public class QueryTagStateTest {
 	@Before
 	public void init() {
 		TestRunners.newTestRunner(QueryTagState.class);
-		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", java.util.logging.Level.INFO.toString());
-		java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
+		//System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", java.util.logging.Level.INFO.toString());
+		//java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
 		InputStream is = ClassLoader.getSystemResourceAsStream("test.properties");
 		try {
 			props.load(is);
@@ -114,6 +114,7 @@ public class QueryTagStateTest {
 		runner.assertTransferCount(QueryTagState.REL_SUCCESS, 10);
 		flowFiles.get(0).assertAttributeEquals("path", "target");
 
+		runner.assertTransferCount(QueryTagState.REL_SINK,0);
 	}
 
 }
