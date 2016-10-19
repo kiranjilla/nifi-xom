@@ -61,6 +61,8 @@ public class QueryTagStateTest {
 		runner.setProperty(QueryTagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
 		runner.setProperty(QueryTagState.POLL_REPEAT_MS_ATTRIBUTE, (String) props.get("poll.repeat.ms.attribute"));
 		runner.setProperty(QueryTagState.IS_ASYNC_ATTRIBUTE, (String) props.get("is.async.attribute"));
+		runner.setProperty(QueryTagState.ENABLE_STATE_TABLE, (String) props.get("enable.state.table"));
+		runner.setProperty(QueryTagState.OUTPUT_DELIMIITER, (String) props.get("output.delimiter"));
 
 		Map<String, String> attributes1 = new HashMap<String, String>();
 		attributes1.put("groupName", "FU-13");
@@ -105,6 +107,8 @@ public class QueryTagStateTest {
 		// runner.setProperty(PollOpcUaProcessor.NODE_ID_ATTRIBUTE,
 		// "ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258,ns=0;i=2259,ns=0;i=2258");
 
+		// runner.setThreadCount(1);
+		// runner.run(1, true, true);
 		runner.setThreadCount(22);
 		runner.run(40, true, true);
 
