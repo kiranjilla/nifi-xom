@@ -32,6 +32,10 @@
 			<artifactId>nifi-processor-utils</artifactId>
 		</dependency>
 		<dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-distributed-cache-client-service-api</artifactId>
+        </dependency>
+        <dependency>
 			<groupId>org.apache.nifi</groupId>
 			<artifactId>nifi-mock</artifactId>
 			<scope>test</scope>
@@ -39,7 +43,6 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -55,7 +58,7 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>jul-to-slf4j</artifactId>
-			<version>1.6.4</version>
+			<version>1.7.12</version>
 		</dependency>
 		<dependency>
 			<groupId>jcifs</groupId>

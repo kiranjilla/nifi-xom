@@ -214,8 +214,8 @@ public class FetchTagList extends AbstractProcessor {
     public void onTrigger( ProcessContext context,  ProcessSession session) throws ProcessException {
             
     	try {
-	        			        		
-	        		createFlowFile( OPCInitialTagConfig.getInstance().fetchAllTags(server,this.getLogger()),session,context);
+    		OPCInitialTagConfig opcConfigHelper = new OPCInitialTagConfig();	
+	        		createFlowFile( opcConfigHelper.fetchAllTags(server,this.getLogger()),session,context);
     		    	   			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
