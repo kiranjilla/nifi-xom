@@ -19,13 +19,16 @@ package org.apache.nifi.processors.opcdaclient.processors;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.Executors;
 
 import javax.annotation.processing.SupportedOptions;
@@ -127,8 +130,19 @@ public class QueryTagState extends AbstractProcessor {
 	private Set<Relationship> relationships;
 
 	private Server server;
+	
+	private String hostName;
 
 	private AutoReconnectController controller;
+	
+	private static SimpleDateFormat simpleDateFormat;
+	
+	static {
+		TimeZone timeZone = TimeZone.getTimeZone("UTC");
+		simpleDateFormat = new SimpleDateFormat("MM/dd/YYYY HH:mm:ss.SSS", Locale.US);
+		simpleDateFormat.setTimeZone(timeZone);
+
+	}
 
 	@Override
 	protected void init(final ProcessorInitializationContext context) {
@@ -181,10 +195,10 @@ public class QueryTagState extends AbstractProcessor {
 			//JISystem.setInBuiltLogHandler(false);
 		    //JISystem.setJavaCoClassAutoCollection(false);
 		    //JISystem.setAutoRegisteration(false);
+			hostName = context.getProperty(OPCDA_SERVER_IP_NAME).getValue();
 		    java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
-			server = new Server(ci, Executors.newScheduledThreadPool(1000));
+			server = new Server(ci, Executors.newScheduledThreadPool(10));
 			controller = new AutoReconnectController(server);
-
 			// connect to server
 			server.connect();
 			controller.connect();
@@ -246,7 +260,7 @@ public class QueryTagState extends AbstractProcessor {
 				//session.remove(flowfile);
 
 				if (!opcTags.isEmpty()) {
-					String output = opcConfigHelper.fetchTagState(opcTags, this.getLogger());
+					String output = opcConfigHelper.fetchTagState(hostName,simpleDateFormat,opcTags, this.getLogger());
 
 					this.getLogger().info("***** for group {} Output-\n{}", new Object[] { groupName, output });
 					if (output.isEmpty()) {

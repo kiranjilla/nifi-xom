@@ -69,8 +69,8 @@ public class JIVariantMarshaller {
 
 				return cyRetVal;
 			default:
-				final String value = variant.getObject().toString();
-				logger.warn(String.format(DEFAULT_MSG, value, variant.getObject().getClass().getName(),
+				final String value = (variant.isByRefFlagSet()?variant.getObject().toString():"");
+				logger.warn(String.format(DEFAULT_MSG, value, (variant.isByRefFlagSet()?variant.getObject().getClass().getName():""),
 						Integer.toHexString(type)));
 				return value;
 			}

@@ -41,11 +41,8 @@ public class OPCInitialTagConfig {
 //		return instance;
 //	}
 
-	public String fetchTagState(Map<String, Item> opcTags, ComponentLog logger) throws JIException {
+	public String fetchTagState(String hostName,SimpleDateFormat simpleDateFormat, Map<String, Item> opcTags, ComponentLog logger) throws JIException {
 		Map<String, Map<String, Object>> data = new TreeMap<String, Map<String, Object>>();
-		TimeZone timeZone = TimeZone.getTimeZone("UTC");
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EE MMM dd HH:mm:ss zzz yyyy", Locale.US);
-		simpleDateFormat.setTimeZone(timeZone);
 
 		// logger.info("*****looking for latest data with
 		// opcTags-group-{}-\n{}",new
@@ -59,8 +56,11 @@ public class OPCInitialTagConfig {
 			final Map<String, Object> itemStateAsMap = getItemStateAsMap(is);
 			data.put(key, itemStateAsMap);
 			// 1 file per group not per tag
-			output.append(key + "-" + opcTags.size() + "," + itemStateAsMap.get(VALUE) + ","
-					+ simpleDateFormat.format(itemStateAsMap.get(TIMESTAMP)) + "," + itemStateAsMap.get(QUALITY) + ","
+			output.append(simpleDateFormat.format(itemStateAsMap.get(TIMESTAMP)) + "$" 
+					+ key + "-" + opcTags.size() + "$" 
+					+ itemStateAsMap.get(VALUE) + "$"
+					+ hostName + "$"
+					+ itemStateAsMap.get(QUALITY) + "$"
 					+ itemStateAsMap.get(ERROR_CODE) + "\n");
 		}
 		return output.toString();
