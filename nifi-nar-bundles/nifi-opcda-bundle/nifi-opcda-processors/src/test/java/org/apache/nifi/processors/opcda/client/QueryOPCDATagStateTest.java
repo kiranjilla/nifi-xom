@@ -29,7 +29,7 @@ import org.apache.nifi.util.TestRunners;
 import org.junit.Before;
 import org.junit.Test;
 
-public class OPCDAQueryTagStateTest {
+public class QueryOPCDATagStateTest {
 
 	private Properties props = new Properties();
 

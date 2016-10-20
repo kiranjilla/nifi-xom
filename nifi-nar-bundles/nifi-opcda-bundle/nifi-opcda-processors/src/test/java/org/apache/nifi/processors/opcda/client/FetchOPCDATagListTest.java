@@ -29,7 +29,7 @@ import org.junit.Test;
 
 
 
-public class OPCDAFetchTagListTest {
+public class FetchOPCDATagListTest {
 
 	private Properties props = new Properties();
 
