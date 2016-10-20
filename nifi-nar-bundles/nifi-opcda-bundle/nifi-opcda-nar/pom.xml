@@ -18,17 +18,24 @@
 
     <parent>
         <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-bundles</artifactId>
-        <version>1.1.0-SNAPSHOT</version>
+        <artifactId>nifi-opcda-bundle</artifactId>
+        <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <modules>
-        <module>nifi-opcda-services</module>
-        <module>nifi-opcda-nar</module>
-        <module>nifi-opcda-processors</module>
-    </modules>
+    <artifactId>nifi-opcdaclient-nar</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>nar</packaging>
+    <properties>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <source.skip>true</source.skip>
+    </properties>
 
-    <artifactId>nifi-opcda-bundle</artifactId>
-    <packaging>pom</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-opcda-processors</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
 
 </project>

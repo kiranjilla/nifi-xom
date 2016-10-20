@@ -1,0 +1,73 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.nifi.processors.opcdaclient.processors;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Properties;
+
+import org.apache.nifi.util.MockFlowFile;
+import org.apache.nifi.util.TestRunner;
+import org.apache.nifi.util.TestRunners;
+import org.junit.Before;
+import org.junit.Test;
+
+
+
+public class OPCDAFetchTagListTest {
+
+	private Properties props = new Properties();
+
+	@Before
+	public void init() {
+		TestRunners.newTestRunner(OPCDAFetchTagList.class);
+		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", java.util.logging.Level.INFO.toString());
+		java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
+		InputStream is = ClassLoader.getSystemResourceAsStream("test.properties");
+		try {
+			props.load(is);
+		} catch (IOException e) {
+			// Handle exception here
+		}
+	}
+
+	@Test
+	public void testFetchTagList() throws IOException {
+
+
+		List<MockFlowFile> flowFiles = null;
+		final TestRunner runner = TestRunners.newTestRunner(new OPCDAFetchTagList());
+
+		runner.setProperty(OPCDAFetchTagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
+		runner.setProperty(OPCDAFetchTagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
+		runner.setProperty(OPCDAFetchTagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
+		runner.setProperty(OPCDAFetchTagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
+		runner.setProperty(OPCDAFetchTagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
+
+		runner.setProperty(OPCDAQueryTagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
+		runner.setThreadCount(1);
+
+		runner.run(1, true, true);
+
+		runner.assertAllFlowFilesTransferred(OPCDAFetchTagList.REL_SUCCESS, 1);
+		flowFiles = runner.getFlowFilesForRelationship(OPCDAFetchTagList.REL_SUCCESS);
+		flowFiles.get(0).assertAttributeEquals("path", "target");
+
+	}
+
+}

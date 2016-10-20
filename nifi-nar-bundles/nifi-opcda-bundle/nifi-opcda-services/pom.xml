@@ -18,17 +18,38 @@
 
     <parent>
         <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-bundles</artifactId>
+        <artifactId>nifi-opcda-bundle</artifactId>
         <version>1.1.0-SNAPSHOT</version>
     </parent>
 
-    <modules>
-        <module>nifi-opcda-services</module>
-        <module>nifi-opcda-nar</module>
-        <module>nifi-opcda-processors</module>
-    </modules>
-
-    <artifactId>nifi-opcda-bundle</artifactId>
+    <artifactId>nifi-opcda-services</artifactId>
     <packaging>pom</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-processor-utils</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-mock</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
 </project>
