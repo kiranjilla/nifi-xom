@@ -240,6 +240,7 @@ public class QueryOPCDATagState extends AbstractProcessor {
                             i = stateTable.getItem(i);
                             output = processItem(output, i);
                         }
+                        processGroup(flowfile, output.toString(), session);
                     } else {
                         getLogger().info("removing expired group: " + groupName);
                         server.removeGroup(stateTable.getGroup(), true);
@@ -274,7 +275,6 @@ public class QueryOPCDATagState extends AbstractProcessor {
                         processGroup(flowfile, output.toString(), session);
 
                     }
-                    processGroup(flowfile, output.toString(), session);
                 } else {
                     session.read(flowfile, new InputStreamCallback() {
                         public void process(InputStream in) throws IOException {
@@ -328,6 +328,9 @@ public class QueryOPCDATagState extends AbstractProcessor {
     }
 
     private StringBuffer processItem(StringBuffer output, Item item) {
+        TimeZone timeZone = TimeZone.getTimeZone("UTC");
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EE MMM dd HH:mm:ss zzz yyyy", Locale.US);
+        simpleDateFormat.setTimeZone(timeZone);
         try {
             this.getLogger().info("[" + item.getGroup().getName() + "] obtaining item state: " + item.getId());
             final ItemState itemState = item.read(false);
@@ -337,7 +340,7 @@ public class QueryOPCDATagState extends AbstractProcessor {
                     .append(DELIMITER)
                     .append(JIVariantMarshaller.toJavaType(itemState.getValue()))
                     .append(DELIMITER)
-                    .append(new DateTime())
+                    .append(simpleDateFormat.format(itemState.getTimestamp()))
                     .append(DELIMITER)
                     .append(itemState.getQuality())
                     .append(DELIMITER)
