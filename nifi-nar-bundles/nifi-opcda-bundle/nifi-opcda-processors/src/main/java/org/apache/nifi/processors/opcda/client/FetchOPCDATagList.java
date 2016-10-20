@@ -57,7 +57,7 @@ import org.openscada.opc.lib.da.Server;
 @SeeAlso({})
 @ReadsAttributes({@ReadsAttribute(attribute="My Property", description="")})
 @WritesAttributes({@WritesAttribute(attribute="", description="")})
-public class OPCDAFetchTagList extends AbstractProcessor {
+public class FetchOPCDATagList extends AbstractProcessor {
     public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor
             .Builder().name("OPCDA_SERVER_IP_NAME")
             .description("OPC DA Server Host Name or IP Address")

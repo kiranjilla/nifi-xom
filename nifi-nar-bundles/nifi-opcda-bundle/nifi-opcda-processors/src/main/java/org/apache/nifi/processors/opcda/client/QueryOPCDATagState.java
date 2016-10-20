@@ -54,7 +54,7 @@ import java.util.concurrent.Executors;
 @ReadsAttributes({@ReadsAttribute(attribute = "My Property", description = "")})
 @WritesAttributes({@WritesAttribute(attribute = "", description = "")})
 @SupportsBatching
-public class OPCDAQueryTagState extends AbstractProcessor {
+public class QueryOPCDATagState extends AbstractProcessor {
 
     private List<PropertyDescriptor> descriptors;
 

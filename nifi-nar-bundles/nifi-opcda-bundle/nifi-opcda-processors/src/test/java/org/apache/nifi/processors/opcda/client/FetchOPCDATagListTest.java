@@ -35,7 +35,7 @@ public class FetchOPCDATagListTest {
 
 	@Before
 	public void init() {
-		TestRunners.newTestRunner(OPCDAFetchTagList.class);
+		TestRunners.newTestRunner(FetchOPCDATagList.class);
 		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", java.util.logging.Level.INFO.toString());
 		java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
 		InputStream is = ClassLoader.getSystemResourceAsStream("test.properties");
@@ -51,21 +51,21 @@ public class FetchOPCDATagListTest {
 
 
 		List<MockFlowFile> flowFiles = null;
-		final TestRunner runner = TestRunners.newTestRunner(new OPCDAFetchTagList());
+		final TestRunner runner = TestRunners.newTestRunner(new FetchOPCDATagList());
 
-		runner.setProperty(OPCDAFetchTagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
-		runner.setProperty(OPCDAFetchTagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
-		runner.setProperty(OPCDAFetchTagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
-		runner.setProperty(OPCDAFetchTagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
-		runner.setProperty(OPCDAFetchTagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
+		runner.setProperty(FetchOPCDATagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
+		runner.setProperty(FetchOPCDATagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
+		runner.setProperty(FetchOPCDATagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
+		runner.setProperty(FetchOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
+		runner.setProperty(FetchOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
 
-		runner.setProperty(OPCDAQueryTagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
+		runner.setProperty(QueryOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
 		runner.setThreadCount(1);
 
 		runner.run(1, true, true);
 
-		runner.assertAllFlowFilesTransferred(OPCDAFetchTagList.REL_SUCCESS, 1);
-		flowFiles = runner.getFlowFilesForRelationship(OPCDAFetchTagList.REL_SUCCESS);
+		runner.assertAllFlowFilesTransferred(FetchOPCDATagList.REL_SUCCESS, 1);
+		flowFiles = runner.getFlowFilesForRelationship(FetchOPCDATagList.REL_SUCCESS);
 		flowFiles.get(0).assertAttributeEquals("path", "target");
 
 	}
