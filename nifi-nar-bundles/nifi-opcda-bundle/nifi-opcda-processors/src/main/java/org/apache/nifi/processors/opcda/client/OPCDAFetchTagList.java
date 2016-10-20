@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.processors.opcdaclient.processors;
+package org.apache.nifi.processors.opcda.client;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -46,7 +46,7 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
-import org.apache.nifi.processors.opcdaclient.util.OPCInitialTagConfig;
+import org.apache.nifi.processors.opcda.client.util.OPCInitialTagConfig;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.da.Server;

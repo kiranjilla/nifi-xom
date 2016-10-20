@@ -1,4 +1,4 @@
-package org.apache.nifi.processors.opcdaclient.util;
+package org.apache.nifi.processors.opcda.client.util;
 
 import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;

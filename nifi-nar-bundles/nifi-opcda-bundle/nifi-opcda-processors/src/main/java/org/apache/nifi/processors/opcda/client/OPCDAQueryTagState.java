@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.processors.opcdaclient.processors;
+package org.apache.nifi.processors.opcda.client;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.*;
@@ -31,8 +31,8 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
-import org.apache.nifi.processors.opcdaclient.domain.OPCDAGroupStateTable;
-import org.apache.nifi.processors.opcdaclient.util.JIVariantMarshaller;
+import org.apache.nifi.processors.opcda.client.util.JIVariantMarshaller;
+import org.apache.nifi.processors.opcda.client.domain.OPCDAGroupStateTable;
 import org.jinterop.dcom.common.JIException;
 import org.joda.time.DateTime;
 import org.openscada.opc.lib.common.ConnectionInformation;

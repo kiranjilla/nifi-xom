@@ -1,13 +1,11 @@
-package org.apache.nifi.processors.opcdaclient.domain;
+package org.apache.nifi.processors.opcda.client.domain;
 
 import org.jinterop.dcom.common.JIException;
 
 import org.joda.time.DateTime;
 
-import org.openscada.opc.lib.da.AddFailedException;
 import org.openscada.opc.lib.da.Group;
 import org.openscada.opc.lib.da.Item;
-import org.openscada.opc.lib.da.Server;
 
 import java.util.*;
 import java.util.logging.Logger;
