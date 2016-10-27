@@ -1,5 +1,6 @@
 #!/bin/bash
 export NIFI_HOME=/usr/local/nifi
+export JAVA_HOME=/usr
 
 mvn -DskipTests clean package
 $NIFI_HOME/bin/nifi.sh stop

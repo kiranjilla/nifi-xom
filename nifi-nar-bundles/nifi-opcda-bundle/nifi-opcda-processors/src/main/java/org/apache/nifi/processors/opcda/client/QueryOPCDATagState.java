@@ -31,10 +31,10 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
-import org.apache.nifi.processors.opcda.client.util.JIVariantMarshaller;
-import org.apache.nifi.processors.opcda.client.domain.OPCDAGroupStateTable;
+import org.apache.nifi.processors.opcda.client.domain.OPCDAGroupCacheObject;
+import org.apache.nifi.processors.opcda.client.domain.OPCDAConnection;
+import org.apache.nifi.processors.opcda.client.util.OPCDAObjectMapper;
 import org.jinterop.dcom.common.JIException;
-import org.joda.time.DateTime;
 import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.common.NotConnectedException;
 import org.openscada.opc.lib.da.*;
@@ -47,7 +47,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.Executors;
 
-@Tags({"opc da tag state query"})
+@Tags({"opcda opc state tag query"})
 @CapabilityDescription("Polls OPC DA Server and create flow file")
 @InputRequirement(Requirement.INPUT_ALLOWED)
 @SeeAlso({})
@@ -56,25 +56,19 @@ import java.util.concurrent.Executors;
 @SupportsBatching
 public class QueryOPCDATagState extends AbstractProcessor {
 
+    private OPCDAConnection server;
+
     private List<PropertyDescriptor> descriptors;
 
     private Set<Relationship> relationships;
 
-    private Server server;
-
-    private AutoReconnectController controller;
-
     boolean enableStateTable = false;
 
-    Collection<OPCDAGroupStateTable> stateTables = new ArrayList<OPCDAGroupStateTable>();
+    Collection<OPCDAGroupCacheObject> cache = new ArrayList<>();
 
     private Integer stateTableRefreshInterval;
 
-    private String DELIMITER = ",";
-
-    TimeZone timeZone = TimeZone.getTimeZone("UTC");
-    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EE MMM dd HH:mm:ss zzz yyyy", Locale.US);
-
+    private String DELIMITER;
 
     public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor.Builder()
             .name("OPCDA_SERVER_IP_NAME").description("OPC DA Server Host Name or IP Address").required(true)
@@ -142,7 +136,7 @@ public class QueryOPCDATagState extends AbstractProcessor {
 
     @Override
     protected void init(final ProcessorInitializationContext context) {
-        final List<PropertyDescriptor> descriptors = new ArrayList<PropertyDescriptor>();
+        final List<PropertyDescriptor> descriptors = new ArrayList<>();
         descriptors.add(OPCDA_SERVER_IP_NAME);
         descriptors.add(OPCDA_WORKGROUP_NAME);
         descriptors.add(OPCDA_USER_NAME);
@@ -156,12 +150,25 @@ public class QueryOPCDATagState extends AbstractProcessor {
         descriptors.add(STATE_TABLE_REFRESH_INTERVAL);
         this.descriptors = Collections.unmodifiableList(descriptors);
 
-        final Set<Relationship> relationships = new HashSet<Relationship>();
+        if (getLogger().isInfoEnabled()) {
+            getLogger().info("[ PROPERTY DESCRIPTORS INITIALIZED ]");
+            for (PropertyDescriptor i : descriptors) {
+                getLogger().info(i.getName());
+            }
+        }
+
+        final Set<Relationship> relationships = new HashSet<>();
         relationships.add(REL_SUCCESS);
         relationships.add(REL_FAILURE);
         relationships.add(REL_RETRY);
         this.relationships = Collections.unmodifiableSet(relationships);
 
+        if (getLogger().isInfoEnabled()) {
+            getLogger().info("[ RELATIONSHIPS INITIALIZED ]");
+            for (Relationship i : relationships) {
+                getLogger().info(i.getName());
+            }
+        }
     }
 
     @Override
@@ -175,193 +182,144 @@ public class QueryOPCDATagState extends AbstractProcessor {
     }
 
     @OnScheduled
-    public void onScheduled(final ProcessContext context) {
-        try {
-            final String opcServerURI = context.getProperty(OPCDA_SERVER_IP_NAME).getValue();
-            this.getLogger().info("*****OnScheduled creating Client and connecting it " + opcServerURI);
+    public void onScheduled(final ProcessContext processContext) {
+        getLogger().info("esablishing connection from connection information derived from context");
+        //server = new Server(ci, Executors.newSingleThreadScheduledExecutor());
+        server = getConnection(processContext);
+        getLogger().info("server state: " + server.getServerState());
 
-            // create connection information
-            final ConnectionInformation ci = new ConnectionInformation();
-            ci.setHost(context.getProperty(OPCDA_SERVER_IP_NAME).getValue());
-            ci.setDomain(context.getProperty(OPCDA_WORKGROUP_NAME).getValue());
-            ci.setUser(context.getProperty(OPCDA_USER_NAME).getValue());
-            ci.setPassword(context.getProperty(OPCDA_PASSWORD_TEXT).getValue());
-            ci.setClsid(context.getProperty(OPCDA_CLASS_ID_NAME).getValue());
-
-            server = new Server(ci, Executors.newScheduledThreadPool(1000));
-            server.connect();
-
-            controller = new AutoReconnectController(server);
-            controller.connect();
-
-            enableStateTable = Boolean.parseBoolean(context.getProperty(ENABLE_STATE_TABLE).getValue());
-            stateTableRefreshInterval = Integer.parseInt(context.getProperty(STATE_TABLE_REFRESH_INTERVAL).getValue());
-            DELIMITER = context.getProperty(OUTPUT_DELIMIITER).getValue();
-
-        } catch (Exception e) {
-            this.getLogger().error("*****OnScheduled creating Client error {} [{}]",
-                    new Object[]{e.getMessage(), e.getStackTrace()});
-            context.yield();
-        }
-
+        enableStateTable = Boolean.parseBoolean(processContext.getProperty(ENABLE_STATE_TABLE).getValue());
+        stateTableRefreshInterval = Integer.parseInt(processContext.getProperty(STATE_TABLE_REFRESH_INTERVAL).getValue());
+        DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
     }
 
     @OnStopped
-    public void onStopped(final ProcessContext context) {
-        try {
-            this.getLogger().info("*****OnStopped disconnecting client ");
-            controller.disconnect();
-            server.disconnect();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+    public void onStopped(final ProcessContext processContext) {
+        server.disconnect();
+        getLogger().info("disconnected");
     }
 
     @Override
-    public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
+    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) throws ProcessException {
 
         String groupName = null;
         Collection<String> itemIds = new ArrayList<String>();
         Collection<Item> items = new ArrayList<Item>();
 
-        FlowFile flowfile = session.get();
-        Group group = null;
+        getLogger().info("obtaining flowfile from session");
+        FlowFile flowfile = processSession.get();
+        Group group;
+
         try {
             if (flowfile != null) {
+                getLogger().info("flowfile id: " + flowfile.getId());
                 groupName = flowfile.getAttribute("groupName");
-                StringBuffer output = new StringBuffer();
-
-                if (enableStateTable && ifStateTablesContainGroup(groupName)) {
-                    OPCDAGroupStateTable stateTable = getStateTableForGroup(groupName);
-                    if (!stateTable.isExpired(stateTableRefreshInterval)) {
-                        this.getLogger().info("utilizing state table for group: " + groupName);
-                        for (Item i : stateTable.getItems()) {
-                            i = stateTable.getItem(i);
-                            output = processItem(output, i);
+                getLogger().info("processing group: " + groupName);
+                final boolean existingGroup = ifCached(groupName);
+                if (enableStateTable && existingGroup) {
+                    StringBuffer output = new StringBuffer();
+                    OPCDAGroupCacheObject cache = getCacheForGroup(groupName);
+                    if (!cache.isExpired(stateTableRefreshInterval)) {
+                        getLogger().info("utilizing cache for group: " + groupName);
+                        for (Item i : cache.getItems()) {
+                            i = cache.getItem(i);
+                            final String item = processItem(i);
+                            output.append(item);
                         }
-                        processGroup(flowfile, output.toString(), session);
+                        processGroup(flowfile, output.toString(), processSession);
                     } else {
-                        getLogger().info("removing expired group: " + groupName);
-                        server.removeGroup(stateTable.getGroup(), true);
-                        try {
-                            getLogger().info("recreating group: " + groupName);
-                            group = server.addGroup(groupName);
-                            Item item = null;
-                            for (String itemId : itemIds) {
-                                getLogger().info("[" + groupName + "] adding item: " + itemId);
-                                item = group.addItem(itemId);
-                                output = processItem(output, item);
-                                if (enableStateTable) {
-                                    this.getLogger().info("[" + groupName + "] adding item to state table: " + itemId);
-                                    items.add(item);
-                                }
-                            }
-                        } catch (NotConnectedException e) {
-                            e.printStackTrace();
-                        } catch (UnknownHostException e) {
-                            e.printStackTrace();
-                        } catch (JIException e) {
-                            e.printStackTrace();
-                        } catch (DuplicateGroupException e) {
-                            e.printStackTrace();
-                        } catch (AddFailedException e) {
-                            e.printStackTrace();
-                        }
-                        if (enableStateTable) {
-                            this.getLogger().info("adding group to state table: " + groupName);
-                            stateTables.add(new OPCDAGroupStateTable(group, items));
-                        }
-                        processGroup(flowfile, output.toString(), session);
-
-                    }
-                } else {
-                    session.read(flowfile, new InputStreamCallback() {
-                        public void process(InputStream in) throws IOException {
-                            try {
-                                if (itemIds.isEmpty()) {
-                                    itemIds.addAll(IOUtils.readLines(in));
-                                }
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    });
-
-                    try {
-                        getLogger().info("creating group: " + groupName);
-                        group = server.addGroup(groupName);
-                        Item item = null;
+                        getLogger().info("removing group from expired cache: " + groupName);
+                        server.removeGroup(cache.getGroup(), true);
+                        getLogger().info("reconstructing group for cache: " + groupName);
+                        group = new OPCDAGroupCacheObject(server.addGroup(groupName)).getGroup();
+                        Item item;
                         for (String itemId : itemIds) {
                             getLogger().info("[" + groupName + "] adding item: " + itemId);
                             item = group.addItem(itemId);
-                            output = processItem(output, item);
-                            if (enableStateTable) {
-                                this.getLogger().info("[" + groupName + "] adding item to state table: " + itemId);
-                                items.add(item);
+                            output.append(processItem(item));
+                            getLogger().info("[" + groupName + "] adding item to group cache object: " + itemId);
+                        }
+                        getLogger().info("adding group to state table: " + groupName);
+                        processGroup(flowfile, output.toString(), processSession);
+                    }
+                } else {
+                    StringBuffer output = new StringBuffer();
+                    getLogger().info("reading flowfile from session");
+                    processSession.read(flowfile, new InputStreamCallback() {
+                        public void process(InputStream in) throws IOException {
+                            if (itemIds.isEmpty()) {
+                                itemIds.addAll(IOUtils.readLines(in));
                             }
                         }
-                    } catch (NotConnectedException e) {
-                        e.printStackTrace();
-                    } catch (UnknownHostException e) {
-                        e.printStackTrace();
-                    } catch (JIException e) {
-                        e.printStackTrace();
-                    } catch (DuplicateGroupException e) {
-                        e.printStackTrace();
-                    } catch (AddFailedException e) {
-                        e.printStackTrace();
+                    });
+                    getLogger().info("creating group: " + groupName);
+                    group = server.addGroup(groupName);
+                    Item item;
+                    for (String itemId : itemIds) {
+                        getLogger().info("[" + groupName + "] adding item: " + itemId);
+                        item = group.addItem(itemId);
+                        String _item = processItem(item);
+                        output.append(_item);
+                        if (enableStateTable) {
+                            getLogger().info("[" + groupName + "] adding item to group cache object: " + itemId);
+                            items.add(item);
+                        }
                     }
+                    processGroup(flowfile, output.toString(), processSession);
                     if (enableStateTable) {
-                        this.getLogger().info("adding group to state table: " + groupName);
-                        stateTables.add(new OPCDAGroupStateTable(group, items));
+                        getLogger().info("adding group to cache: " + groupName);
+                        cache.add(new OPCDAGroupCacheObject(group, items));
                     }
-                    processGroup(flowfile, output.toString(), session);
                 }
             }
-        } catch (Exception e) {
+        } catch (NotConnectedException e) {
             e.printStackTrace();
-            if (flowfile != null) {
-                session.transfer(flowfile, REL_FAILURE);
-            }
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (JIException e) {
+            e.printStackTrace();
+        } catch (DuplicateGroupException e) {
+            e.printStackTrace();
+        } catch (AddFailedException e) {
+            e.printStackTrace();
         }
     }
 
-    private StringBuffer processItem(StringBuffer output, Item item) {
-        TimeZone timeZone = TimeZone.getTimeZone("UTC");
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EE MMM dd HH:mm:ss zzz yyyy", Locale.US);
-        simpleDateFormat.setTimeZone(timeZone);
+    private String processItem(Item item) {
+        getLogger().info("processing item: " + item.getId());
+        StringBuffer sb = new StringBuffer();
         try {
-            this.getLogger().info("[" + item.getGroup().getName() + "] obtaining item state: " + item.getId());
-            final ItemState itemState = item.read(false);
-            final String value = JIVariantMarshaller.toJavaType(itemState.getValue()).toString();
-            this.getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
-            output.append(item.getId())
+            getLogger().info("[" + item.getGroup().getName() + "] obtaining item state: " + item.getId());
+            ItemState itemState = item.read(false);
+            String value = OPCDAObjectMapper.toJavaType(itemState.getValue()).toString();
+            getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
+            sb.append(item.getId())
                     .append(DELIMITER)
-                    .append(JIVariantMarshaller.toJavaType(itemState.getValue()))
+                    .append(OPCDAObjectMapper.toJavaType(itemState.getValue()))
                     .append(DELIMITER)
-                    .append(simpleDateFormat.format(itemState.getTimestamp()))
+                    .append(itemState.getTimestamp().getTimeInMillis())
                     .append(DELIMITER)
                     .append(itemState.getQuality())
                     .append(DELIMITER)
                     .append(itemState.getErrorCode())
                     .append("\n");
+            getLogger().info("item output [" + item.getId() + "] " + sb.toString());
         } catch (JIException e) {
             e.printStackTrace();
         }
-        return output;
+        return sb.toString();
     }
 
-    private void processGroup(FlowFile flowfile, String output, ProcessSession session) {
-
+    private void processGroup(FlowFile flowfile, String output, ProcessSession processSession) {
+        getLogger().info("processing output: " + output);
         if (output.isEmpty()) {
-            this.getLogger().info("releasing flow file");
-            session.transfer(flowfile, REL_FAILURE);
+            getLogger().info("releasing flow file");
+            processSession.transfer(flowfile, REL_FAILURE);
         } else {
             getLogger().debug("writing flow file");
-            flowfile = session.write(flowfile, new OutputStreamCallback() {
+            flowfile = processSession.write(flowfile, new OutputStreamCallback() {
                 @Override
-                public void process(final OutputStream stream) throws IOException {
+                public void process(OutputStream stream) throws IOException {
                     try {
                         stream.write(output.getBytes("UTF-8"));
                     } catch (Exception e) {
@@ -371,36 +329,54 @@ public class QueryOPCDATagState extends AbstractProcessor {
             });
 
             // ToDo
-            // session.putAttribute(flowFile, "filename", key);
-            // session.getProvenanceReporter().receive(flowFile, "OPC");
-            session.transfer(flowfile, REL_SUCCESS);
+            // processSession.putAttribute(flowFile, "filename", key);
+            // processSession.getProvenanceReporter().receive(flowFile, "OPC");
+            processSession.transfer(flowfile, REL_SUCCESS);
         }
     }
 
-    private boolean ifStateTablesContainGroup(String groupName) {
-        for (OPCDAGroupStateTable st : stateTables) {
+    private boolean ifCached(String groupName) {
+        for (OPCDAGroupCacheObject c : cache) {
             try {
-                if (st.getGroup().getName().equals(groupName)) {
+                if (c.getGroup().getName().equals(groupName)) {
+                    getLogger().info("state table contains group: " + groupName);
                     return true;
                 }
             } catch (JIException e) {
                 e.printStackTrace();
             }
         }
+        getLogger().info("group not found in state table: " + groupName);
         return false;
     }
 
-    private OPCDAGroupStateTable getStateTableForGroup(String groupName) {
-        for (OPCDAGroupStateTable st : stateTables) {
+    private OPCDAGroupCacheObject getCacheForGroup(String groupName) {
+        getLogger().info("retrieving state table for group: " + groupName);
+        for (OPCDAGroupCacheObject c: cache) {
             try {
-                if (st.getGroup().getName().equals(groupName)) {
-                    return st;
+                if (c.getGroup().getName().equals(groupName)) {
+                    getLogger().info("state table exists for group: " + groupName);
+                    return c;
+                } else {
+                    getLogger().info("state table for group not found: " + groupName);
                 }
             } catch (JIException e) {
                 e.printStackTrace();
             }
         }
         return null;
+    }
+
+
+    private OPCDAConnection getConnection(final ProcessContext processContext) {
+        getLogger().info("aggregating connection information from context");
+        ConnectionInformation connectionInformation = new ConnectionInformation();
+        connectionInformation.setHost(processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue());
+        connectionInformation.setDomain(processContext.getProperty(OPCDA_WORKGROUP_NAME).getValue());
+        connectionInformation.setUser(processContext.getProperty(OPCDA_USER_NAME).getValue());
+        connectionInformation.setPassword(processContext.getProperty(OPCDA_PASSWORD_TEXT).getValue());
+        connectionInformation.setClsid(processContext.getProperty(OPCDA_CLASS_ID_NAME).getValue());
+        return new OPCDAConnection(connectionInformation, Executors.newSingleThreadScheduledExecutor());
     }
 
 }

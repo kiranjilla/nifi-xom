@@ -71,7 +71,7 @@ public class OPCInitialTagConfig {
 		retVal.put(ERROR_CODE, Integer.valueOf(is.getErrorCode()));
 		retVal.put(QUALITY, Short.valueOf(is.getQuality()));
 		retVal.put(TIMESTAMP, is.getTimestamp().getTime());
-		retVal.put(VALUE, JIVariantMarshaller.toJavaType(is.getValue()));
+		retVal.put(VALUE, OPCDAObjectMapper.toJavaType(is.getValue()));
 		// retVal.put("value2", JIVariantMarshaller.dumpValue(is.getValue()));
 
 		return retVal;

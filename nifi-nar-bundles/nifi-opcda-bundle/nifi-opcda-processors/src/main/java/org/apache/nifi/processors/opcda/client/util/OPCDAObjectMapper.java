@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
 /**
  * @author <a href="mailto:justin.smith@summitsystemsinc.com">Justin Smith</a>
  */
-public class JIVariantMarshaller {
+public class OPCDAObjectMapper {
 
-    private static final Logger logger = LoggerFactory.getLogger(JIVariantMarshaller.class);
+    private static final Logger logger = LoggerFactory.getLogger(OPCDAObjectMapper.class);
 
     public static Object toJavaType(JIVariant variant) throws JIException {
         int type = variant.getType();
