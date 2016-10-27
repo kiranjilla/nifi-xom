@@ -31,9 +31,6 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
-import org.apache.nifi.processors.opcda.client.domain.OPCDAGroupCacheObject;
-import org.apache.nifi.processors.opcda.client.domain.OPCDAConnection;
-import org.apache.nifi.processors.opcda.client.util.OPCDAObjectMapper;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.common.NotConnectedException;
@@ -43,7 +40,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.Executors;
 
@@ -54,7 +50,7 @@ import java.util.concurrent.Executors;
 @ReadsAttributes({@ReadsAttribute(attribute = "My Property", description = "")})
 @WritesAttributes({@WritesAttribute(attribute = "", description = "")})
 @SupportsBatching
-public class QueryOPCDATagState extends AbstractProcessor {
+public class GetOPCDATagState extends AbstractProcessor {
 
     private OPCDAConnection server;
 
@@ -71,68 +67,116 @@ public class QueryOPCDATagState extends AbstractProcessor {
     private String DELIMITER;
 
     public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor.Builder()
-            .name("OPCDA_SERVER_IP_NAME").description("OPC DA Server Host Name or IP Address").required(true)
-            .expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .addValidator(StandardValidators.URI_VALIDATOR).build();
+            .name("OPCDA_SERVER_IP_NAME")
+            .description("OPC DA Server Host Name or IP Address")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
 
     public static final PropertyDescriptor OPCDA_WORKGROUP_NAME = new PropertyDescriptor.Builder()
-            .name("OPCDA_WORKGROUP_NAME").description("OPC DA Server Work Group Name").required(true)
-            .expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .addValidator(StandardValidators.URI_VALIDATOR).build();
+            .name("OPCDA_WORKGROUP_NAME")
+            .description("OPC DA Server Work Group Name")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
 
-    public static final PropertyDescriptor OPCDA_USER_NAME = new PropertyDescriptor.Builder().name("OPCDA_USER_NAME")
-            .description("OPC DA User Name").required(true).expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR).addValidator(StandardValidators.URI_VALIDATOR)
+    public static final PropertyDescriptor OPCDA_USER_NAME = new PropertyDescriptor.Builder()
+            .name("OPCDA_USER_NAME")
+            .description("OPC DA User Name")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
             .build();
 
     public static final PropertyDescriptor OPCDA_PASSWORD_TEXT = new PropertyDescriptor.Builder()
-            .name("OPCDA_PASSWORD_TEXT").description("OPC DA Password Text").required(true).sensitive(true)
-            .expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .addValidator(StandardValidators.URI_VALIDATOR).build();
+            .name("OPCDA_PASSWORD_TEXT")
+            .description("OPC DA Password Text")
+            .required(true).sensitive(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
 
     public static final PropertyDescriptor OPCDA_CLASS_ID_NAME = new PropertyDescriptor.Builder()
-            .name("OPCDA_CLASS_ID_NAME").description("OPC DA Class ID Name").required(true)
-            .expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .addValidator(StandardValidators.URI_VALIDATOR).build();
+            .name("OPCDA_CLASS_ID_NAME")
+            .description("OPC DA Class ID Name")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
 
     public static final PropertyDescriptor POLL_REPEAT_MS_ATTRIBUTE = new PropertyDescriptor.Builder()
-            .name("POLL_REPEAT_MS_ATTRIBUTE").description("No of times to Poll for Read operation from OPC DA Server")
-            .required(true).defaultValue("60000").expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR).build();
+            .name("POLL_REPEAT_MS_ATTRIBUTE")
+            .description("No of times to Poll for Read operation from OPC DA Server")
+            .required(true)
+            .defaultValue("60000")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
 
     public static final PropertyDescriptor IS_ASYNC_ATTRIBUTE = new PropertyDescriptor.Builder()
-            .name("IS_ASYNC_ATTRIBUTE").description("Is Read operation Async to OPC DA Server").required(true)
-            .defaultValue("Y").expressionLanguageSupported(false).addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .name("IS_ASYNC_ATTRIBUTE")
+            .description("Is Read operation Async to OPC DA Server")
+            .required(true)
+            .defaultValue("Y")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
     public static final PropertyDescriptor READ_TIMEOUT_MS_ATTRIBUTE = new PropertyDescriptor.Builder()
-            .name("READ_TIMEOUT_MS_ATTRIBUTE").description("Read Timeout for Read operation from OPC DA Server")
-            .required(true).defaultValue("600000").expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR).build();
+            .name("READ_TIMEOUT_MS_ATTRIBUTE")
+            .description("Read Timeout for Read operation from OPC DA Server")
+            .required(true).defaultValue("600000")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
 
     public static final PropertyDescriptor OUTPUT_DELIMIITER = new PropertyDescriptor.Builder()
-            .name("Output Delimiter").description("Delimiter for formating output")
-            .required(true).defaultValue(",").expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_BLANK_VALIDATOR).build();
+            .name("Output Delimiter")
+            .description("Delimiter for formating output")
+            .required(true)
+            .defaultValue(",")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
+            .build();
 
     public static final PropertyDescriptor ENABLE_STATE_TABLE = new PropertyDescriptor.Builder()
-            .name("Enable State Table").description("Enable Stateful Group/Item Reconciliation")
-            .required(true).defaultValue("false").expressionLanguageSupported(false)
-            .addValidator(StandardValidators.BOOLEAN_VALIDATOR).build();
+            .name("Enable State Table")
+            .description("Enable Stateful Group/Item Reconciliation")
+            .required(true)
+            .defaultValue("false")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.BOOLEAN_VALIDATOR)
+            .build();
 
     public static final PropertyDescriptor STATE_TABLE_REFRESH_INTERVAL = new PropertyDescriptor.Builder()
-            .name("State Table Refresh Interval").description("Time in seconds to refresh groups/items in State Table")
-            .required(true).defaultValue("3600").expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_BLANK_VALIDATOR).build();
+            .name("State Table Refresh Interval")
+            .description("Time in seconds to refresh groups/items in State Table")
+            .required(true)
+            .defaultValue("3600").expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
+            .build();
 
-    public static final Relationship REL_SUCCESS = new Relationship.Builder().name("success")
-            .description("The FlowFile with transformed content will be routed to this relationship").build();
+    public static final Relationship REL_SUCCESS = new Relationship.Builder()
+            .name("success")
+            .description("The FlowFile with transformed content will be routed to this relationship")
+            .build();
 
-    public static final Relationship REL_FAILURE = new Relationship.Builder().name("failure")
-            .description("The FlowFile with transformed content has failed to this relationship").build();
+    public static final Relationship REL_FAILURE = new Relationship.Builder()
+            .name("failure")
+            .description("The FlowFile with transformed content has failed to this relationship")
+            .build();
 
-    public static final Relationship REL_RETRY = new Relationship.Builder().name("retry")
-            .description("The FlowFile with transformed content will be retried to this relationship").build();
+    public static final Relationship REL_RETRY = new Relationship.Builder()
+            .name("retry")
+            .description("The FlowFile with transformed content will be retried to this relationship")
+            .build();
 
     @Override
     protected void init(final ProcessorInitializationContext context) {
@@ -184,17 +228,15 @@ public class QueryOPCDATagState extends AbstractProcessor {
     @OnScheduled
     public void onScheduled(final ProcessContext processContext) {
         getLogger().info("esablishing connection from connection information derived from context");
-        //server = new Server(ci, Executors.newSingleThreadScheduledExecutor());
         server = getConnection(processContext);
         getLogger().info("server state: " + server.getServerState());
-
         enableStateTable = Boolean.parseBoolean(processContext.getProperty(ENABLE_STATE_TABLE).getValue());
         stateTableRefreshInterval = Integer.parseInt(processContext.getProperty(STATE_TABLE_REFRESH_INTERVAL).getValue());
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
     }
 
     @OnStopped
-    public void onStopped(final ProcessContext processContext) {
+    public void onStopped() {
         server.disconnect();
         getLogger().info("disconnected");
     }
@@ -367,7 +409,6 @@ public class QueryOPCDATagState extends AbstractProcessor {
         return null;
     }
 
-
     private OPCDAConnection getConnection(final ProcessContext processContext) {
         getLogger().info("aggregating connection information from context");
         ConnectionInformation connectionInformation = new ConnectionInformation();
@@ -376,6 +417,7 @@ public class QueryOPCDATagState extends AbstractProcessor {
         connectionInformation.setUser(processContext.getProperty(OPCDA_USER_NAME).getValue());
         connectionInformation.setPassword(processContext.getProperty(OPCDA_PASSWORD_TEXT).getValue());
         connectionInformation.setClsid(processContext.getProperty(OPCDA_CLASS_ID_NAME).getValue());
+        //connectionInformation.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
         return new OPCDAConnection(connectionInformation, Executors.newSingleThreadScheduledExecutor());
     }
 

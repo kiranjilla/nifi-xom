@@ -1,0 +1,310 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.nifi.processors.opcda.client;
+
+import org.apache.nifi.annotation.behavior.*;
+import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
+import org.apache.nifi.annotation.documentation.CapabilityDescription;
+import org.apache.nifi.annotation.documentation.SeeAlso;
+import org.apache.nifi.annotation.documentation.Tags;
+import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.annotation.lifecycle.OnStopped;
+import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.flowfile.FlowFile;
+import org.apache.nifi.processor.*;
+import org.apache.nifi.processor.exception.ProcessException;
+import org.apache.nifi.processor.io.OutputStreamCallback;
+import org.apache.nifi.processor.util.StandardValidators;
+import org.jinterop.dcom.common.JIException;
+import org.openscada.opc.lib.common.ConnectionInformation;
+import org.openscada.opc.lib.da.AddFailedException;
+import org.openscada.opc.lib.da.browser.Branch;
+import org.openscada.opc.lib.da.browser.Leaf;
+import org.openscada.opc.lib.da.browser.TreeBrowser;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.UnknownHostException;
+import java.util.*;
+import java.util.concurrent.Executors;
+
+@Tags({"opc da client fetch tag list"})
+@CapabilityDescription("Polls OPC DA Server and create tag list file")
+@InputRequirement(Requirement.INPUT_FORBIDDEN)
+@SeeAlso({})
+@ReadsAttributes({@ReadsAttribute(attribute = "My Property", description = "")})
+@WritesAttributes({@WritesAttribute(attribute = "", description = "")})
+public class GetOPCDATagList extends AbstractProcessor {
+
+    private OPCDAConnection connection;
+
+    private List<PropertyDescriptor> descriptors;
+
+    private Set<Relationship> relationships;
+
+    public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor
+            .Builder().name("OPCDA_SERVER_IP_NAME")
+            .description("OPC DA Server Host Name or IP Address")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor OPCDA_WORKGROUP_NAME = new PropertyDescriptor
+            .Builder().name("OPCDA_WORKGROUP_NAME")
+            .description("OPC DA Server Domain or Workgroup Name")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor OPCDA_USER_NAME = new PropertyDescriptor
+            .Builder().name("OPCDA_USER_NAME")
+            .description("OPC DA User Name")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor OPCDA_PASSWORD_TEXT = new PropertyDescriptor
+            .Builder().name("OPCDA_PASSWORD_TEXT")
+            .description("OPC DA Password")
+            .required(true)
+            .sensitive(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor OPCDA_CLASS_ID_NAME = new PropertyDescriptor
+            .Builder().name("OPCDA_CLASS_ID_NAME")
+            .description("OPC DA Class or Application ID")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor MAX_ITEMS_IN_GROUP_ATTRIBUTE = new PropertyDescriptor
+            .Builder().name("MAX_ITEMS_IN_GROUP_ATTRIBUTE")
+            .description("No of maximum items to be part of group for Read operation from OPC DA Server")
+            .required(true)
+            .defaultValue("3000")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
+
+    public static final PropertyDescriptor READ_TIMEOUT_MS_ATTRIBUTE = new PropertyDescriptor
+            .Builder().name("READ_TIMEOUT_MS_ATTRIBUTE")
+            .description("Read Timeout for Read operation from OPC DA Server")
+            .required(true)
+            .defaultValue("10000")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor TAG_FILTER = new PropertyDescriptor
+            .Builder().name("OPC Tag Filter Expression")
+            .description("OPT Tag Filter to limit or constrain tags to a particular group")
+            .required(false)
+            .defaultValue("*")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
+    public static final Relationship REL_SUCCESS = new Relationship.Builder()
+            .name("success")
+            .description("The FlowFile with transformed content will be routed to this relationship")
+            .build();
+
+    public static final Relationship REL_FAILURE = new Relationship.Builder()
+            .name("failure")
+            .description("The FlowFile with transformed content has failed to this relationship")
+            .build();
+
+
+    @Override
+    protected void init(final ProcessorInitializationContext context) {
+        final List<PropertyDescriptor> descriptors = new ArrayList<PropertyDescriptor>();
+        descriptors.add(OPCDA_SERVER_IP_NAME);
+        descriptors.add(OPCDA_WORKGROUP_NAME);
+        descriptors.add(OPCDA_USER_NAME);
+        descriptors.add(OPCDA_PASSWORD_TEXT);
+        descriptors.add(OPCDA_CLASS_ID_NAME);
+        descriptors.add(TAG_FILTER);
+        descriptors.add(READ_TIMEOUT_MS_ATTRIBUTE);
+        descriptors.add(MAX_ITEMS_IN_GROUP_ATTRIBUTE);
+        this.descriptors = Collections.unmodifiableList(descriptors);
+
+        if (getLogger().isInfoEnabled()) {
+            getLogger().info("[ PROPERTY DESCRIPTORS INITIALIZED ]");
+            for (PropertyDescriptor i : descriptors) {
+                getLogger().info(i.getName());
+            }
+        }
+
+        final Set<Relationship> relationships = new HashSet<Relationship>();
+        relationships.add(REL_SUCCESS);
+        relationships.add(REL_FAILURE);
+        this.relationships = Collections.unmodifiableSet(relationships);
+
+        if (getLogger().isInfoEnabled()) {
+            getLogger().info("[ RELATIONSHIPS INITIALIZED ]");
+            for (Relationship i : relationships) {
+                getLogger().info(i.getName());
+            }
+        }
+    }
+
+    @Override
+    public Set<Relationship> getRelationships() {
+        return this.relationships;
+    }
+
+    @Override
+    public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
+        return descriptors;
+    }
+
+    @OnScheduled
+    public void onScheduled(final ProcessContext context) {
+        getLogger().info("esablishing connection from connection information derived from context");
+
+        // create connection information
+        final ConnectionInformation ci = new ConnectionInformation();
+        ci.setHost(context.getProperty(OPCDA_SERVER_IP_NAME).getValue());
+        ci.setDomain(context.getProperty(OPCDA_WORKGROUP_NAME).getValue());
+        ci.setUser(context.getProperty(OPCDA_USER_NAME).getValue());
+        ci.setPassword(context.getProperty(OPCDA_PASSWORD_TEXT).getValue());
+        //ci.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
+        ci.setClsid(context.getProperty(OPCDA_CLASS_ID_NAME).getValue());
+        connection = new OPCDAConnection(ci, Executors.newSingleThreadScheduledExecutor());
+    }
+
+    @OnStopped
+    public void onStopped(final ProcessContext context) {
+        getLogger().info("disconnecting");
+        try {
+            connection.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onTrigger(ProcessContext processContext, ProcessSession processSession) throws ProcessException {
+        try {
+            processTags(getTags(), processSession, processContext);
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.getLogger().error("*****Ontrigger error {} [{}]", new Object[]{e.getMessage(), e.getStackTrace()});
+            processContext.yield();
+        }
+    }
+
+    private void processTags(List<String> itemIds, ProcessSession processSession, ProcessContext processContext) {
+        FlowFile flowfile = processSession.create();
+        flowfile = processSession.write(flowfile, new OutputStreamCallback() {
+            @Override
+            public void process(final OutputStream outStream) throws IOException {
+                try {
+                    StringBuffer output = new StringBuffer();
+                    for (String item : itemIds) {
+                        output.append(item.toString() + "\n");
+                    }
+                    outStream.write(output.toString().getBytes("UTF-8"));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        String fileName = "file-" + processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue();
+        if (fileName != null) {
+            flowfile = processSession.putAttribute(flowfile, "filename", fileName);
+        }
+        processSession.getProvenanceReporter().receive(flowfile, fileName);
+        processSession.transfer(flowfile, REL_SUCCESS);
+    }
+
+    public List<String> getTags() {
+        List<String> itemIds = new ArrayList<String>();
+        try {
+            TreeBrowser treeBrowser = connection.getTreeBrowser();
+            Branch root = null;
+            root = treeBrowser.browse();
+            Branch parent = root;
+
+            ArrayList<String> possibleBranches = new ArrayList<String>();
+            StringBuilder possibleMatches = new StringBuilder();
+            for (Branch b : parent.getBranches()) {
+                possibleBranches.add(String.format("%n[B] %s", b.getName()));
+            }
+            Collections.sort(possibleBranches, String.CASE_INSENSITIVE_ORDER);
+            ArrayList<String> possibleLeaves = new ArrayList<String>();
+            for (Leaf l : parent.getLeaves()) {
+                possibleLeaves.add(String.format("%n[T] %s", l.getName()));
+            }
+            Collections.sort(possibleLeaves, String.CASE_INSENSITIVE_ORDER);
+
+            for (String s : possibleBranches) {
+                possibleMatches.append(s);
+            }
+            for (String s : possibleLeaves) {
+                possibleMatches.append(s);
+            }
+
+            populateItemsMapRecursive(parent, itemIds);
+
+        } catch (JIException e) {
+            e.printStackTrace();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+
+        return itemIds;
+
+    }
+
+    public void populateItemsMapRecursive(Branch parent, List<String> itemIds) {
+        for (Leaf l : parent.getLeaves()) {
+            try {
+                registerLeaf(l, itemIds);
+                for (Branch child : parent.getBranches()) {
+                    populateItemsMapRecursive(child, itemIds);
+                }
+            } catch (JIException e) {
+                e.printStackTrace();
+            } catch (AddFailedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void registerLeaf(Leaf l, List<String> itemIds) throws JIException, AddFailedException {
+        String itemId = l.getItemId();
+        itemIds.add(itemId);
+        // if (opcGroup != null) {
+        // Item i = opcGroup.addItem(itemId);
+        // }
+    }
+
+}

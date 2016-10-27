@@ -29,13 +29,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-public class QueryOPCDATagStateTest {
+public class GetOPCDATagStateTest {
 
     private Properties props = new Properties();
 
     @Before
     public void init() {
-        TestRunners.newTestRunner(QueryOPCDATagState.class);
+        TestRunners.newTestRunner(GetOPCDATagState.class);
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", java.util.logging.Level.INFO.toString());
         java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
         java.util.logging.Logger.getLogger("org.jinterop.dcom.core").setLevel(java.util.logging.Level.OFF);
@@ -52,19 +52,19 @@ public class QueryOPCDATagStateTest {
     public void testQueryOPCDATagState() throws IOException {
 
         List<MockFlowFile> flowFiles = null;
-        final TestRunner runner = TestRunners.newTestRunner(new QueryOPCDATagState());
+        final TestRunner runner = TestRunners.newTestRunner(new GetOPCDATagState());
 
-        runner.setProperty(FetchOPCDATagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
-        runner.setProperty(FetchOPCDATagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
-        runner.setProperty(FetchOPCDATagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
-        runner.setProperty(FetchOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
-        runner.setProperty(FetchOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
+        runner.setProperty(GetOPCDATagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
+        runner.setProperty(GetOPCDATagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
+        runner.setProperty(GetOPCDATagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
+        runner.setProperty(GetOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
+        runner.setProperty(GetOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
 
-        runner.setProperty(QueryOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
-        runner.setProperty(QueryOPCDATagState.POLL_REPEAT_MS_ATTRIBUTE, (String) props.get("poll.repeat.ms.attribute"));
-        runner.setProperty(QueryOPCDATagState.IS_ASYNC_ATTRIBUTE, (String) props.get("is.async.attribute"));
-        runner.setProperty(QueryOPCDATagState.ENABLE_STATE_TABLE, (String) props.get("enable.state.table"));
-        runner.setProperty(QueryOPCDATagState.OUTPUT_DELIMIITER, (String) props.get("output.delimiter"));
+        runner.setProperty(GetOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
+        runner.setProperty(GetOPCDATagState.POLL_REPEAT_MS_ATTRIBUTE, (String) props.get("poll.repeat.ms.attribute"));
+        runner.setProperty(GetOPCDATagState.IS_ASYNC_ATTRIBUTE, (String) props.get("is.async.attribute"));
+        runner.setProperty(GetOPCDATagState.ENABLE_STATE_TABLE, (String) props.get("enable.state.table"));
+        runner.setProperty(GetOPCDATagState.OUTPUT_DELIMIITER, (String) props.get("output.delimiter"));
 
         Map<String, String> attributes1 = new HashMap<String, String>();
         attributes1.put("groupName", "FU-13");
@@ -115,9 +115,9 @@ public class QueryOPCDATagStateTest {
         runner.run(40, true, true);
 
         // runner.assertQueueEmpty();
-        flowFiles = runner.getFlowFilesForRelationship(QueryOPCDATagState.REL_SUCCESS);
+        flowFiles = runner.getFlowFilesForRelationship(GetOPCDATagState.REL_SUCCESS);
         // runner.assertAllFlowFilesTransferred(QueryOPCDATagState.REL_SUCCESS, 4);
-        runner.assertTransferCount(QueryOPCDATagState.REL_SUCCESS, 10);
+        runner.assertTransferCount(GetOPCDATagState.REL_SUCCESS, 10);
         flowFiles.get(0).assertAttributeEquals("path", "target");
 
     }

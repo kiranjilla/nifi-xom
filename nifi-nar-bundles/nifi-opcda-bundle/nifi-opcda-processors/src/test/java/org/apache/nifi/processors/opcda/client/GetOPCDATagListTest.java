@@ -29,13 +29,13 @@ import org.junit.Test;
 
 
 
-public class FetchOPCDATagListTest {
+public class GetOPCDATagListTest {
 
 	private Properties props = new Properties();
 
 	@Before
 	public void init() {
-		TestRunners.newTestRunner(FetchOPCDATagList.class);
+		TestRunners.newTestRunner(GetOPCDATagList.class);
 		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", java.util.logging.Level.INFO.toString());
 		java.util.logging.Logger.getLogger("org.jinterop").setLevel(java.util.logging.Level.OFF);
 		InputStream is = ClassLoader.getSystemResourceAsStream("test.properties");

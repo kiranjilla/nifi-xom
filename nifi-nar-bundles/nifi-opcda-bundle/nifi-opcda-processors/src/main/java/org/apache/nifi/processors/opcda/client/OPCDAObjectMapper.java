@@ -1,4 +1,4 @@
-package org.apache.nifi.processors.opcda.client.util;
+package org.apache.nifi.processors.opcda.client;
 
 import java.math.BigDecimal;
 

@@ -1,4 +1,4 @@
-package org.apache.nifi.processors.opcda.client.domain;
+package org.apache.nifi.processors.opcda.client;
 
 import org.jinterop.dcom.common.JIException;
 
