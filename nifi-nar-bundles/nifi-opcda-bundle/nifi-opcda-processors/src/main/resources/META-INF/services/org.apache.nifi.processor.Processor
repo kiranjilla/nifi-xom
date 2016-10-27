@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-org.apache.nifi.processors.opcda.client.FetchOPCDATagList
-org.apache.nifi.processors.opcda.client.QueryOPCDATagState
+org.apache.nifi.processors.opcda.client.GetOPCDATagList
+org.apache.nifi.processors.opcda.client.GetOPCDATagState
 
 
