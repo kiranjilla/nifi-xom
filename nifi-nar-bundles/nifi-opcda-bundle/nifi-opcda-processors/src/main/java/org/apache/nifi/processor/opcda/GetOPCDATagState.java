@@ -243,7 +243,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                 final boolean existingGroup = ifCached(groupName);
                 if (enableStateTable && existingGroup) {
                     StringBuffer output = new StringBuffer();
-                    OPCDAGroupCacheObject cache = getCacheForGroup(groupName);
+                    OPCDAGroupCacheObject cache = getCachedGroup(groupName);
                     if (!cache.isExpired(stateTableRefreshInterval)) {
                         getLogger().info("utilizing cache for group: " + groupName);
                         for (Item i : cache.getItems()) {
@@ -375,7 +375,7 @@ public class GetOPCDATagState extends AbstractProcessor {
         return false;
     }
 
-    private OPCDAGroupCacheObject getCacheForGroup(String groupName) {
+    private OPCDAGroupCacheObject getCachedGroup(String groupName) {
         getLogger().info("retrieving state table for group: " + groupName);
         for (OPCDAGroupCacheObject c: cache) {
             try {

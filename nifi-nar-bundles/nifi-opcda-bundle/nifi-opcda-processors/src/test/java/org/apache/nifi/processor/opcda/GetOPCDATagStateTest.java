@@ -72,7 +72,12 @@ public class GetOPCDATagStateTest {
         attributes1.put("groupName", "FU-13");
         // attributes1.put("fragment.index", "1");
         runner.enqueue(
-                "Channel1.Device1.Tag10\n_System._ProjectTitle\n_System._TotalTagCount\n_System._DateTime\n_System._ActiveTagCount\n",
+                "Channel1.Device1.Tag10\n" +
+                "_System._ProjectTitle\n" +
+                "_System._TotalTagCount\n"
+                        + "_System._DateTime\n" +
+                        "_System._ActiveTagCount\n",
+
                 attributes1);
         Map<String, String> attributes2 = new HashMap<String, String>();
         attributes2.put("groupName", "FU-14");
