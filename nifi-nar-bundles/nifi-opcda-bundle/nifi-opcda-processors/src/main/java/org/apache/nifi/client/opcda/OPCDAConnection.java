@@ -1,13 +1,10 @@
-package org.apache.nifi.processors.opcda.client;
+package org.apache.nifi.client.opcda;
 
 import lombok.Data;
-import org.jinterop.dcom.common.JIException;
-import org.openscada.opc.lib.common.AlreadyConnectedException;
 import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.da.AutoReconnectController;
 import org.openscada.opc.lib.da.Server;
 
-import java.net.UnknownHostException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Logger;
 
@@ -37,10 +34,6 @@ public class OPCDAConnection extends Server {
         this.executors = executors;
         this.controller = new AutoReconnectController(this);
         this.controller.connect();
-    }
-
-    public Server getServer() {
-        return this.getServer();
     }
 
 }

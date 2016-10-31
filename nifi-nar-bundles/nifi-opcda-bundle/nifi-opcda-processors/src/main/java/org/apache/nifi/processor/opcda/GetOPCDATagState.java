@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.processors.opcda.client;
+package org.apache.nifi.processor.opcda;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.*;
@@ -24,10 +24,12 @@ import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
+import org.apache.nifi.client.opcda.OPCDAConnection;
+import org.apache.nifi.client.opcda.OPCDAGroupCacheObject;
+import org.apache.nifi.client.opcda.OPCDAItemStateValueMapper;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.*;
-import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
@@ -41,7 +43,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.Executors;
+
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Tags({"opcda opc state tag query"})
 @CapabilityDescription("Polls OPC DA Server and create flow file")
@@ -105,26 +108,7 @@ public class GetOPCDATagState extends AbstractProcessor {
     public static final PropertyDescriptor OPCDA_CLASS_ID_NAME = new PropertyDescriptor.Builder()
             .name("OPCDA_CLASS_ID_NAME")
             .description("OPC DA Class ID Name")
-            .required(true)
-            .expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .addValidator(StandardValidators.URI_VALIDATOR)
-            .build();
-
-    public static final PropertyDescriptor POLL_REPEAT_MS_ATTRIBUTE = new PropertyDescriptor.Builder()
-            .name("POLL_REPEAT_MS_ATTRIBUTE")
-            .description("No of times to Poll for Read operation from OPC DA Server")
-            .required(true)
-            .defaultValue("60000")
-            .expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .build();
-
-    public static final PropertyDescriptor IS_ASYNC_ATTRIBUTE = new PropertyDescriptor.Builder()
-            .name("IS_ASYNC_ATTRIBUTE")
-            .description("Is Read operation Async to OPC DA Server")
-            .required(true)
-            .defaultValue("Y")
+            // .required(true)
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
@@ -132,7 +116,8 @@ public class GetOPCDATagState extends AbstractProcessor {
     public static final PropertyDescriptor READ_TIMEOUT_MS_ATTRIBUTE = new PropertyDescriptor.Builder()
             .name("READ_TIMEOUT_MS_ATTRIBUTE")
             .description("Read Timeout for Read operation from OPC DA Server")
-            .required(true).defaultValue("600000")
+            .required(true)
+            .defaultValue("600000")
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
@@ -146,17 +131,17 @@ public class GetOPCDATagState extends AbstractProcessor {
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
-    public static final PropertyDescriptor ENABLE_STATE_TABLE = new PropertyDescriptor.Builder()
-            .name("Enable State Table")
-            .description("Enable Stateful Group/Item Reconciliation")
+    public static final PropertyDescriptor ENABLE_GROUP_CACHE = new PropertyDescriptor.Builder()
+            .name("Enable Group Cache")
+            .description("Enable Group/Item Cache")
             .required(true)
             .defaultValue("false")
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.BOOLEAN_VALIDATOR)
             .build();
 
-    public static final PropertyDescriptor STATE_TABLE_REFRESH_INTERVAL = new PropertyDescriptor.Builder()
-            .name("State Table Refresh Interval")
+    public static final PropertyDescriptor CACHE_REFRESH_INTERVAL = new PropertyDescriptor.Builder()
+            .name("Cache Refresh Interval")
             .description("Time in seconds to refresh groups/items in State Table")
             .required(true)
             .defaultValue("3600").expressionLanguageSupported(false)
@@ -187,11 +172,9 @@ public class GetOPCDATagState extends AbstractProcessor {
         descriptors.add(OPCDA_PASSWORD_TEXT);
         descriptors.add(OPCDA_CLASS_ID_NAME);
         descriptors.add(READ_TIMEOUT_MS_ATTRIBUTE);
-        descriptors.add(POLL_REPEAT_MS_ATTRIBUTE);
         descriptors.add(OUTPUT_DELIMIITER);
-        descriptors.add(IS_ASYNC_ATTRIBUTE);
-        descriptors.add(ENABLE_STATE_TABLE);
-        descriptors.add(STATE_TABLE_REFRESH_INTERVAL);
+        descriptors.add(ENABLE_GROUP_CACHE);
+        descriptors.add(CACHE_REFRESH_INTERVAL);
         this.descriptors = Collections.unmodifiableList(descriptors);
 
         if (getLogger().isInfoEnabled()) {
@@ -217,7 +200,7 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     @Override
     public Set<Relationship> getRelationships() {
-        return this.relationships;
+        return relationships;
     }
 
     @Override
@@ -230,8 +213,8 @@ public class GetOPCDATagState extends AbstractProcessor {
         getLogger().info("esablishing connection from connection information derived from context");
         server = getConnection(processContext);
         getLogger().info("server state: " + server.getServerState());
-        enableStateTable = Boolean.parseBoolean(processContext.getProperty(ENABLE_STATE_TABLE).getValue());
-        stateTableRefreshInterval = Integer.parseInt(processContext.getProperty(STATE_TABLE_REFRESH_INTERVAL).getValue());
+        enableStateTable = Boolean.parseBoolean(processContext.getProperty(ENABLE_GROUP_CACHE).getValue());
+        stateTableRefreshInterval = Integer.parseInt(processContext.getProperty(CACHE_REFRESH_INTERVAL).getValue());
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
     }
 
@@ -242,7 +225,7 @@ public class GetOPCDATagState extends AbstractProcessor {
     }
 
     @Override
-    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) throws ProcessException {
+    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
 
         String groupName = null;
         Collection<String> itemIds = new ArrayList<String>();
@@ -333,11 +316,11 @@ public class GetOPCDATagState extends AbstractProcessor {
         try {
             getLogger().info("[" + item.getGroup().getName() + "] obtaining item state: " + item.getId());
             ItemState itemState = item.read(false);
-            String value = OPCDAObjectMapper.toJavaType(itemState.getValue()).toString();
+            String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
             getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
             sb.append(item.getId())
                     .append(DELIMITER)
-                    .append(OPCDAObjectMapper.toJavaType(itemState.getValue()))
+                    .append(OPCDAItemStateValueMapper.toJavaType(itemState.getValue()))
                     .append(DELIMITER)
                     .append(itemState.getTimestamp().getTimeInMillis())
                     .append(DELIMITER)
@@ -380,7 +363,7 @@ public class GetOPCDATagState extends AbstractProcessor {
     private boolean ifCached(String groupName) {
         for (OPCDAGroupCacheObject c : cache) {
             try {
-                if (c.getGroup().getName().equals(groupName)) {
+                if (cache != null && c.getGroup().getName().equals(groupName)) {
                     getLogger().info("state table contains group: " + groupName);
                     return true;
                 }
@@ -418,7 +401,7 @@ public class GetOPCDATagState extends AbstractProcessor {
         connectionInformation.setPassword(processContext.getProperty(OPCDA_PASSWORD_TEXT).getValue());
         connectionInformation.setClsid(processContext.getProperty(OPCDA_CLASS_ID_NAME).getValue());
         //connectionInformation.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
-        return new OPCDAConnection(connectionInformation, Executors.newSingleThreadScheduledExecutor());
+        return new OPCDAConnection(connectionInformation, newSingleThreadScheduledExecutor());
     }
 
 }

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.processors.opcda.client;
+package org.apache.nifi.processor.opcda;
 
 import org.apache.nifi.annotation.behavior.*;
 import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
@@ -23,6 +23,7 @@ import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
+import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.*;
@@ -41,6 +42,7 @@ import java.io.OutputStream;
 import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
 @Tags({"opc da client fetch tag list"})
 @CapabilityDescription("Polls OPC DA Server and create tag list file")
@@ -50,12 +52,17 @@ import java.util.concurrent.Executors;
 @WritesAttributes({@WritesAttribute(attribute = "", description = "")})
 public class GetOPCDATagList extends AbstractProcessor {
 
+    private Logger log = Logger.getLogger(this.getClass().getName());
+
     private OPCDAConnection connection;
 
     private List<PropertyDescriptor> descriptors;
 
     private Set<Relationship> relationships;
 
+    private String filter;
+
+    // PROPERTIES
     public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor
             .Builder().name("OPCDA_SERVER_IP_NAME")
             .description("OPC DA Server Host Name or IP Address")
@@ -102,13 +109,13 @@ public class GetOPCDATagList extends AbstractProcessor {
             .addValidator(StandardValidators.URI_VALIDATOR)
             .build();
 
-    public static final PropertyDescriptor MAX_ITEMS_IN_GROUP_ATTRIBUTE = new PropertyDescriptor
-            .Builder().name("MAX_ITEMS_IN_GROUP_ATTRIBUTE")
-            .description("No of maximum items to be part of group for Read operation from OPC DA Server")
+    public static final PropertyDescriptor TAG_FILTER = new PropertyDescriptor
+            .Builder().name("Tag Filter")
+            .description("OPT Tag Filter to limit or constrain tags to a particular group")
             .required(true)
-            .defaultValue("3000")
-            .expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .defaultValue("*")
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.REGULAR_EXPRESSION_VALIDATOR)
             .build();
 
 
@@ -121,15 +128,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-    public static final PropertyDescriptor TAG_FILTER = new PropertyDescriptor
-            .Builder().name("OPC Tag Filter Expression")
-            .description("OPT Tag Filter to limit or constrain tags to a particular group")
-            .required(false)
-            .defaultValue("*")
-            .expressionLanguageSupported(false)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .build();
-
+    // RELATIONSHIPS
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
             .description("The FlowFile with transformed content will be routed to this relationship")
@@ -151,7 +150,7 @@ public class GetOPCDATagList extends AbstractProcessor {
         descriptors.add(OPCDA_CLASS_ID_NAME);
         descriptors.add(TAG_FILTER);
         descriptors.add(READ_TIMEOUT_MS_ATTRIBUTE);
-        descriptors.add(MAX_ITEMS_IN_GROUP_ATTRIBUTE);
+        descriptors.add(TAG_FILTER);
         this.descriptors = Collections.unmodifiableList(descriptors);
 
         if (getLogger().isInfoEnabled()) {
@@ -197,27 +196,19 @@ public class GetOPCDATagList extends AbstractProcessor {
         //ci.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
         ci.setClsid(context.getProperty(OPCDA_CLASS_ID_NAME).getValue());
         connection = new OPCDAConnection(ci, Executors.newSingleThreadScheduledExecutor());
+
+        filter = context.getProperty(TAG_FILTER).getValue();
     }
 
     @OnStopped
     public void onStopped(final ProcessContext context) {
         getLogger().info("disconnecting");
-        try {
-            connection.disconnect();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        connection.disconnect();
     }
 
     @Override
     public void onTrigger(ProcessContext processContext, ProcessSession processSession) throws ProcessException {
-        try {
-            processTags(getTags(), processSession, processContext);
-        } catch (Exception e) {
-            e.printStackTrace();
-            this.getLogger().error("*****Ontrigger error {} [{}]", new Object[]{e.getMessage(), e.getStackTrace()});
-            processContext.yield();
-        }
+        processTags(getTags(), processSession, processContext);
     }
 
     private void processTags(List<String> itemIds, ProcessSession processSession, ProcessContext processContext) {
@@ -246,33 +237,29 @@ public class GetOPCDATagList extends AbstractProcessor {
     }
 
     public List<String> getTags() {
+        log.info("getting tags matching filter: " + filter);
         List<String> itemIds = new ArrayList<String>();
         try {
-            TreeBrowser treeBrowser = connection.getTreeBrowser();
-            Branch root = null;
-            root = treeBrowser.browse();
-            Branch parent = root;
+            TreeBrowser tree = connection.getTreeBrowser();
+            Branch branch = tree.browse();
+            ArrayList<String> matches = new ArrayList<String>();
 
-            ArrayList<String> possibleBranches = new ArrayList<String>();
             StringBuilder possibleMatches = new StringBuilder();
-            for (Branch b : parent.getBranches()) {
-                possibleBranches.add(String.format("%n[B] %s", b.getName()));
-            }
-            Collections.sort(possibleBranches, String.CASE_INSENSITIVE_ORDER);
-            ArrayList<String> possibleLeaves = new ArrayList<String>();
-            for (Leaf l : parent.getLeaves()) {
-                possibleLeaves.add(String.format("%n[T] %s", l.getName()));
-            }
-            Collections.sort(possibleLeaves, String.CASE_INSENSITIVE_ORDER);
-
-            for (String s : possibleBranches) {
-                possibleMatches.append(s);
-            }
-            for (String s : possibleLeaves) {
-                possibleMatches.append(s);
+            for (Branch b : branch.getBranches()) {
+                if (b.getName().matches(filter)) {
+                    log.info("matching tag for branch: " + b.getName());
+                    matches.add(String.format("%n[B] %s", b.getName()));
+                }
             }
 
-            populateItemsMapRecursive(parent, itemIds);
+            for (Leaf l : branch.getLeaves()) {
+                if (l.getName().matches(filter)) {
+                    log.info("matching tag for leaf: " + l.getName());
+                    matches.add(String.format("%n[T] %s", l.getName()));
+                }
+            }
+
+            populateItemsMapRecursive(branch, itemIds);
 
         } catch (JIException e) {
             e.printStackTrace();

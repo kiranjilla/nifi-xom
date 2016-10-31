@@ -1,6 +1,7 @@
-package org.apache.nifi.processors.opcda.client;
+package org.apache.nifi.client.opcda;
 
 import java.math.BigDecimal;
+import java.util.logging.Logger;
 
 import org.jinterop.dcom.common.JIException;
 import org.jinterop.dcom.core.JIArray;
@@ -10,29 +11,21 @@ import org.jinterop.dcom.core.JIUnsignedByte;
 import org.jinterop.dcom.core.JIUnsignedInteger;
 import org.jinterop.dcom.core.JIUnsignedShort;
 import org.jinterop.dcom.core.JIVariant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author <a href="mailto:justin.smith@summitsystemsinc.com">Justin Smith</a>
  */
-public class OPCDAObjectMapper {
-
-    private static final Logger logger = LoggerFactory.getLogger(OPCDAObjectMapper.class);
+public class OPCDAItemStateValueMapper {
 
     public static Object toJavaType(JIVariant variant) throws JIException {
         int type = variant.getType();
 
         if ((type & JIVariant.VT_ARRAY) == JIVariant.VT_ARRAY) {
             JIArray array = variant.getObjectAsArray();
-
             return jIArrayToJavaArray(array, type);
         } else {
-
             switch (type) {
-
                 case JIVariant.VT_I1:
-                    // This is a hack... (Maybe MS doesnt have a byte?)
                     return Byte.valueOf((byte) variant.getObjectAsChar());
                 case JIVariant.VT_I2:
                     return Short.valueOf(variant.getObjectAsShort());
@@ -50,10 +43,7 @@ public class OPCDAObjectMapper {
                 case JIVariant.VT_UI1:
                     return Byte.valueOf(variant.getObjectAsUnsigned().getValue().byteValue());
                 case JIVariant.VT_UI2:
-                    // return
-                    // Short.valueOf(variant.getObjectAsUnsigned().getValue().shortValue());
                     return variant.getObjectAsUnsigned().getValue().toString();
-                // return Junsigi.getValue().toString();
                 case JIVariant.VT_UI4:
                 case JIVariant.VT_UINT:
                     return Integer.valueOf(variant.getObjectAsUnsigned().getValue().intValue());
@@ -63,14 +53,10 @@ public class OPCDAObjectMapper {
                     return Boolean.valueOf(variant.getObjectAsBoolean());
                 case JIVariant.VT_CY:
                     JICurrency currency = (JICurrency) variant.getObject();
-
                     BigDecimal cyRetVal = currencyToBigDecimal(currency);
-
                     return cyRetVal;
                 default:
                     final String value = (variant.isByRefFlagSet() ? variant.getObject().toString() : "");
-                    logger.warn(String.format(DEFAULT_MSG, value, (variant.isByRefFlagSet() ? variant.getObject().getClass().getName() : ""),
-                            Integer.toHexString(type)));
                     return value;
 
             }
@@ -160,8 +146,6 @@ public class OPCDAObjectMapper {
                 }
                 return strRetVal;
             default:
-                logger.warn(
-                        String.format(DEFAULT_MSG, jIArray, jIArray.getArrayClass().getName(), Integer.toHexString(type)));
                 return objArray;
         }
     }

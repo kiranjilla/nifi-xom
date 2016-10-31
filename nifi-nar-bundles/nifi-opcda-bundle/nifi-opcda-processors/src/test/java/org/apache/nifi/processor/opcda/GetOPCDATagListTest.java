@@ -14,15 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.processors.opcda.client;
+package org.apache.nifi.processor.opcda;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 import java.util.Properties;
+import java.util.logging.Logger;
 
-import org.apache.nifi.util.MockFlowFile;
-import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,6 +28,8 @@ import org.junit.Test;
 
 
 public class GetOPCDATagListTest {
+
+	private Logger log = Logger.getLogger(this.getClass().getName());
 
 	private Properties props = new Properties();
 

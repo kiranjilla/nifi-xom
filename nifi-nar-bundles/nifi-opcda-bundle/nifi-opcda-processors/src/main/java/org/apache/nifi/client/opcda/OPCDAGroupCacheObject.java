@@ -1,5 +1,6 @@
-package org.apache.nifi.processors.opcda.client;
+package org.apache.nifi.client.opcda;
 
+import lombok.Data;
 import org.jinterop.dcom.common.JIException;
 
 import org.joda.time.DateTime;
@@ -14,6 +15,7 @@ import java.util.logging.Logger;
 /**
  * Created by fdigirolomo on 10/18/16.
  */
+@Data
 public class OPCDAGroupCacheObject {
 
     private Logger log = Logger.getLogger(this.getClass().getName());
@@ -40,15 +42,6 @@ public class OPCDAGroupCacheObject {
         }
         this.group = group;
         this.items = items;
-    }
-
-    public Group getGroup() {
-        return this.group;
-    }
-
-    public Collection<Item> getItems() {
-        log.info("returning items: " + items.toString());
-        return items;
     }
 
     public Item getItem(Item item) {

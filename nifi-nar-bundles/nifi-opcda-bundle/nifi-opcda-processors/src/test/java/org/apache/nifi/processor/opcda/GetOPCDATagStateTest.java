@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.processors.opcda.client;
+package org.apache.nifi.processor.opcda;
 
 import org.apache.nifi.util.MockFlowFile;
 import org.apache.nifi.util.TestRunner;
@@ -28,8 +28,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 public class GetOPCDATagStateTest {
+
+    private Logger log = Logger.getLogger(this.getClass().getName());
 
     private Properties props = new Properties();
 
@@ -44,7 +47,7 @@ public class GetOPCDATagStateTest {
         try {
             props.load(is);
         } catch (IOException e) {
-            // Handle exception here
+            e.printStackTrace();
         }
     }
 
@@ -61,9 +64,8 @@ public class GetOPCDATagStateTest {
         runner.setProperty(GetOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
 
         runner.setProperty(GetOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
-        runner.setProperty(GetOPCDATagState.POLL_REPEAT_MS_ATTRIBUTE, (String) props.get("poll.repeat.ms.attribute"));
-        runner.setProperty(GetOPCDATagState.IS_ASYNC_ATTRIBUTE, (String) props.get("is.async.attribute"));
-        runner.setProperty(GetOPCDATagState.ENABLE_STATE_TABLE, (String) props.get("enable.state.table"));
+        runner.setProperty(GetOPCDATagState.ENABLE_GROUP_CACHE, (String) props.get("enable.group.cache"));
+        runner.setProperty(GetOPCDATagState.CACHE_REFRESH_INTERVAL, (String) props.get("group.cache.interval.ms"));
         runner.setProperty(GetOPCDATagState.OUTPUT_DELIMIITER, (String) props.get("output.delimiter"));
 
         Map<String, String> attributes1 = new HashMap<String, String>();
