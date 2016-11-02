@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 @Data
 public class OPCDAGroupCacheObject {
 
-    private Logger log = Logger.getLogger(this.getClass().getName());
+    private Logger log = Logger.getLogger(getClass().getName());
 
     private Group group;
 

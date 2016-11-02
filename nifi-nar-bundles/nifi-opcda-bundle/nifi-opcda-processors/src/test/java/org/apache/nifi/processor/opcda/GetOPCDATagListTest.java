@@ -18,9 +18,12 @@ package org.apache.nifi.processor.opcda;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import org.apache.nifi.util.MockFlowFile;
+import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,23 +53,24 @@ public class GetOPCDATagListTest {
 	public void testFetchTagList() throws IOException {
 
 
-//		List<MockFlowFile> flowFiles = null;
-//		final TestRunner runner = TestRunners.newTestRunner(new FetchOPCDATagList());
-//
-//		runner.setProperty(FetchOPCDATagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
-//		runner.setProperty(FetchOPCDATagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
-//		runner.setProperty(FetchOPCDATagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
-//		runner.setProperty(FetchOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
-//		runner.setProperty(FetchOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
-//
-//		runner.setProperty(QueryOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
-//		runner.setThreadCount(1);
-//
-//		runner.run(1, true, true);
-//
-//		runner.assertAllFlowFilesTransferred(FetchOPCDATagList.REL_SUCCESS, 1);
-//		flowFiles = runner.getFlowFilesForRelationship(FetchOPCDATagList.REL_SUCCESS);
-//		flowFiles.get(0).assertAttributeEquals("path", "target");
+		List<MockFlowFile> flowFiles = null;
+		final TestRunner runner = TestRunners.newTestRunner(new GetOPCDATagList());
+
+		runner.setValidateExpressionUsage(false);
+		runner.setProperty(GetOPCDATagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
+		runner.setProperty(GetOPCDATagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
+		runner.setProperty(GetOPCDATagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
+		runner.setProperty(GetOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
+		runner.setProperty(GetOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
+
+		runner.setProperty(GetOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
+		runner.setThreadCount(1);
+
+		runner.run(1, true, true);
+
+		runner.assertAllFlowFilesTransferred(GetOPCDATagList.REL_SUCCESS, 1);
+		flowFiles = runner.getFlowFilesForRelationship(GetOPCDATagList.REL_SUCCESS);
+		flowFiles.get(0).assertAttributeEquals("path", "target");
 
 	}
 

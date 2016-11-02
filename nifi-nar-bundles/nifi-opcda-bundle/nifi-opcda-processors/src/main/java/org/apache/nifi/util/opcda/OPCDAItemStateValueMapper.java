@@ -1,4 +1,4 @@
-package org.apache.nifi.client.opcda;
+package org.apache.nifi.util.opcda;
 
 import java.math.BigDecimal;
 import java.util.logging.Logger;
@@ -14,6 +14,7 @@ import org.jinterop.dcom.core.JIVariant;
 
 /**
  * @author <a href="mailto:justin.smith@summitsystemsinc.com">Justin Smith</a>
+ * @author <a href="mailto:fdigirolomo@hortonworks.com">Frank DiGirolomo</a>
  */
 public class OPCDAItemStateValueMapper {
 

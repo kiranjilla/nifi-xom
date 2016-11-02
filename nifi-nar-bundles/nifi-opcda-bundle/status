@@ -1,0 +1,14 @@
+completed:
+- deployed existing rc1 code in lab against sim
+- created flow using rc1 code
+
+in progress: address most expensive operations for improviing perfomance
+- group caching (mostly complete)
+- connection pooling (nearing complettion)
+- group management by tag filter (filter handling in place, file management by filter not yet implemented)
+- logging down to info level (complete)
+
+in progress:
+- exception handling (requires actual production OPC server)
+
+for discussion: kafka/storm processing in lieu of file based management and processing

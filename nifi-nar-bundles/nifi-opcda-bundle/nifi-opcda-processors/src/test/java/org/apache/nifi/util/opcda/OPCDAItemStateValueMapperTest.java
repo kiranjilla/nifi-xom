@@ -1,4 +1,4 @@
-package org.apache.nifi.client.opcda;
+package org.apache.nifi.util.opcda;
 
 /**
  * Created by fdigirolomo on 10/28/16.

@@ -26,7 +26,7 @@ import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.client.opcda.OPCDAGroupCacheObject;
-import org.apache.nifi.client.opcda.OPCDAItemStateValueMapper;
+import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.*;

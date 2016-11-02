@@ -113,7 +113,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             .Builder().name("Tag Filter")
             .description("OPT Tag Filter to limit or constrain tags to a particular group")
             .required(true)
-            .defaultValue("*")
+            .defaultValue("Tag10")
             .expressionLanguageSupported(true)
             .addValidator(StandardValidators.REGULAR_EXPRESSION_VALIDATOR)
             .build();
@@ -196,7 +196,6 @@ public class GetOPCDATagList extends AbstractProcessor {
         //ci.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
         ci.setClsid(context.getProperty(OPCDA_CLASS_ID_NAME).getValue());
         connection = new OPCDAConnection(ci, Executors.newSingleThreadScheduledExecutor());
-
         filter = context.getProperty(TAG_FILTER).getValue();
     }
 
@@ -240,18 +239,15 @@ public class GetOPCDATagList extends AbstractProcessor {
         log.info("getting tags matching filter: " + filter);
         List<String> itemIds = new ArrayList<String>();
         try {
-            TreeBrowser tree = connection.getTreeBrowser();
-            Branch branch = tree.browse();
+            // connection.getController().connect();
+            Branch branch = connection.getTreeBrowser().browse();
             ArrayList<String> matches = new ArrayList<String>();
-
-            StringBuilder possibleMatches = new StringBuilder();
             for (Branch b : branch.getBranches()) {
                 if (b.getName().matches(filter)) {
                     log.info("matching tag for branch: " + b.getName());
                     matches.add(String.format("%n[B] %s", b.getName()));
                 }
             }
-
             for (Leaf l : branch.getLeaves()) {
                 if (l.getName().matches(filter)) {
                     log.info("matching tag for leaf: " + l.getName());
@@ -289,9 +285,6 @@ public class GetOPCDATagList extends AbstractProcessor {
     private void registerLeaf(Leaf l, List<String> itemIds) throws JIException, AddFailedException {
         String itemId = l.getItemId();
         itemIds.add(itemId);
-        // if (opcGroup != null) {
-        // Item i = opcGroup.addItem(itemId);
-        // }
     }
 
 }
