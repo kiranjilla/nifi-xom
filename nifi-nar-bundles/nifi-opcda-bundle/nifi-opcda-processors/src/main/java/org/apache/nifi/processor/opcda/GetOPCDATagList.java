@@ -44,12 +44,11 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
-@Tags({"opc da client fetch tag list"})
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+
+@Tags({"opcda client tags"})
 @CapabilityDescription("Polls OPC DA Server and create tag list file")
 @InputRequirement(Requirement.INPUT_FORBIDDEN)
-@SeeAlso({})
-@ReadsAttributes({@ReadsAttribute(attribute = "My Property", description = "")})
-@WritesAttributes({@WritesAttribute(attribute = "", description = "")})
 public class GetOPCDATagList extends AbstractProcessor {
 
     private Logger log = Logger.getLogger(this.getClass().getName());
@@ -142,6 +141,7 @@ public class GetOPCDATagList extends AbstractProcessor {
 
     @Override
     protected void init(final ProcessorInitializationContext context) {
+        getLogger().info("initializing property descriptors");
         final List<PropertyDescriptor> descriptors = new ArrayList<PropertyDescriptor>();
         descriptors.add(OPCDA_SERVER_IP_NAME);
         descriptors.add(OPCDA_WORKGROUP_NAME);
@@ -152,50 +152,33 @@ public class GetOPCDATagList extends AbstractProcessor {
         descriptors.add(READ_TIMEOUT_MS_ATTRIBUTE);
         descriptors.add(TAG_FILTER);
         this.descriptors = Collections.unmodifiableList(descriptors);
+        getLogger().info(Arrays.toString(descriptors.toArray()));
 
-        if (getLogger().isInfoEnabled()) {
-            getLogger().info("[ PROPERTY DESCRIPTORS INITIALIZED ]");
-            for (PropertyDescriptor i : descriptors) {
-                getLogger().info(i.getName());
-            }
-        }
-
+        getLogger().info("initializing relationships");
         final Set<Relationship> relationships = new HashSet<Relationship>();
         relationships.add(REL_SUCCESS);
         relationships.add(REL_FAILURE);
         this.relationships = Collections.unmodifiableSet(relationships);
+        getLogger().info(Arrays.toString(relationships.toArray()));
 
-        if (getLogger().isInfoEnabled()) {
-            getLogger().info("[ RELATIONSHIPS INITIALIZED ]");
-            for (Relationship i : relationships) {
-                getLogger().info(i.getName());
-            }
-        }
     }
 
     @Override
     public Set<Relationship> getRelationships() {
-        return this.relationships;
+        getLogger().debug("relationships: " + Arrays.toString(relationships.toArray()));
+        return relationships;
     }
 
     @Override
     public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
+        getLogger().debug("property descriptors: " + Arrays.toString(descriptors.toArray()));
         return descriptors;
     }
 
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         getLogger().info("esablishing connection from connection information derived from context");
-
-        // create connection information
-        final ConnectionInformation ci = new ConnectionInformation();
-        ci.setHost(context.getProperty(OPCDA_SERVER_IP_NAME).getValue());
-        ci.setDomain(context.getProperty(OPCDA_WORKGROUP_NAME).getValue());
-        ci.setUser(context.getProperty(OPCDA_USER_NAME).getValue());
-        ci.setPassword(context.getProperty(OPCDA_PASSWORD_TEXT).getValue());
-        //ci.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
-        ci.setClsid(context.getProperty(OPCDA_CLASS_ID_NAME).getValue());
-        connection = new OPCDAConnection(ci, Executors.newSingleThreadScheduledExecutor());
+        connection = getConnection(context);
         filter = context.getProperty(TAG_FILTER).getValue();
     }
 
@@ -254,9 +237,7 @@ public class GetOPCDATagList extends AbstractProcessor {
                     matches.add(String.format("%n[T] %s", l.getName()));
                 }
             }
-
             populateItemsMapRecursive(branch, itemIds);
-
         } catch (JIException e) {
             e.printStackTrace();
         } catch (UnknownHostException e) {
@@ -285,6 +266,18 @@ public class GetOPCDATagList extends AbstractProcessor {
     private void registerLeaf(Leaf l, List<String> itemIds) throws JIException, AddFailedException {
         String itemId = l.getItemId();
         itemIds.add(itemId);
+    }
+
+    private OPCDAConnection getConnection(final ProcessContext processContext) {
+        getLogger().info("aggregating connection information from context");
+        ConnectionInformation connectionInformation = new ConnectionInformation();
+        connectionInformation.setHost(processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue());
+        connectionInformation.setDomain(processContext.getProperty(OPCDA_WORKGROUP_NAME).getValue());
+        connectionInformation.setUser(processContext.getProperty(OPCDA_USER_NAME).getValue());
+        connectionInformation.setPassword(processContext.getProperty(OPCDA_PASSWORD_TEXT).getValue());
+        connectionInformation.setClsid(processContext.getProperty(OPCDA_CLASS_ID_NAME).getValue());
+        //connectionInformation.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
+        return new OPCDAConnection(connectionInformation, newSingleThreadScheduledExecutor());
     }
 
 }

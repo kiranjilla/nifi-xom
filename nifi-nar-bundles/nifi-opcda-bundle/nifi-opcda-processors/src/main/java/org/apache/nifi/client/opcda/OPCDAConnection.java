@@ -34,8 +34,8 @@ public class OPCDAConnection extends Server {
         super(connectionInformation, executorService);
         log.info("initiating OPCDA server connection");
         log.info("host: " + connectionInformation.getHost());
-        log.info("workgroup or domain: " + connectionInformation.getClsid());
-        log.info("class or program id: " + connectionInformation.getDomain());
+        log.info("workgroup/domain: " + connectionInformation.getClsid());
+        log.info("class/program id: " + connectionInformation.getDomain());
         this.connectionInformation = connectionInformation;
         this.executorService = executorService;
         this.controller = new AutoReconnectController(this);
