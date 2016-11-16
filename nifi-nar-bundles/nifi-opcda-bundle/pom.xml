@@ -24,11 +24,13 @@
 
     <groupId>org.apache.nifi</groupId>
     <artifactId>nifi-opcda-bundle</artifactId>
-    <version>1.0.0-RC2</version>
+    <version>1.0.0-RC3</version>
     <packaging>pom</packaging>
 
     <modules>
+	<!--
         <module>nifi-opcda-services</module>
+	-->
         <module>nifi-opcda-nar</module>
         <module>nifi-opcda-processors</module>
     </modules>

@@ -19,14 +19,13 @@
 
     <parent>
         <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-bundles</artifactId>
-        <version>1.1.0-SNAPSHOT</version>
+        <artifactId>nifi-opcda-bundle</artifactId>
+        <version>1.0.0-RC3</version>
     </parent>
-
 
     <artifactId>nifi-opcda-nar</artifactId>
     <packaging>nar</packaging>
-    <version>1.0.0-RC2</version>
+
     <properties>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <source.skip>true</source.skip>
@@ -36,8 +35,15 @@
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-opcda-processors</artifactId>
-            <version>1.0.0-RC2</version>
+            <version>1.0.0-RC3</version>
         </dependency>
+<!--
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-opcda-services</artifactId>
+            <version>1.0.0-RC3</version>
+        </dependency>
+-->
     </dependencies>
 
 </project>
