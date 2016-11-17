@@ -19,12 +19,6 @@ public class OPCDAConnection extends Server {
 
     private Logger log = Logger.getLogger(getClass().getName());
 
-    private ConnectionInformation connectionInformation;
-
-    private ScheduledExecutorService executorService;
-
-    private AutoReconnectController controller;
-
     private Server server;
 
     private String status;
@@ -32,16 +26,12 @@ public class OPCDAConnection extends Server {
     public OPCDAConnection(final ConnectionInformation connectionInformation,
                            ScheduledExecutorService executorService) {
         super(connectionInformation, executorService);
-        log.info("initiating OPCDA server connection");
+        log.info("initiating OPCDA connection");
         log.info("host: " + connectionInformation.getHost());
         log.info("workgroup/domain: " + connectionInformation.getClsid());
         log.info("class/program id: " + connectionInformation.getDomain());
-        this.connectionInformation = connectionInformation;
-        this.executorService = executorService;
-        this.controller = new AutoReconnectController(this);
-        this.status = OPCDAConnectionStatus.AVAILABLE;
         try {
-            connect();
+            super.connect();
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (JIException e) {
@@ -49,7 +39,6 @@ public class OPCDAConnection extends Server {
         } catch (AlreadyConnectedException e) {
             e.printStackTrace();
         }
-        controller.connect();
     }
 
 //    @Override

@@ -44,31 +44,29 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Tags({"opcda opc state tag query"})
 @CapabilityDescription("Polls OPC DA Server and create flow file")
 @InputRequirement(Requirement.INPUT_ALLOWED)
-@SeeAlso({})
-@ReadsAttributes({@ReadsAttribute(attribute = "My Property", description = "")})
-@WritesAttributes({@WritesAttribute(attribute = "", description = "")})
 @SupportsBatching
 public class GetOPCDATagState extends AbstractProcessor {
 
-    private OPCDAConnection connection;
+    private static OPCDAConnection connection;
 
-    private List<PropertyDescriptor> descriptors;
+    private static List<PropertyDescriptor> descriptors;
 
-    private Set<Relationship> relationships;
+    private static Set<Relationship> relationships;
 
-    private boolean caching = false;
+    private static boolean caching = false;
 
-    Collection<OPCDAGroupCacheObject> cache = new ArrayList<>();
+    private static volatile Collection<OPCDAGroupCacheObject> cache = new ConcurrentLinkedDeque<>();
 
-    private Integer stateTableRefreshInterval;
+    private static Integer stateTableRefreshInterval;
 
-    private String DELIMITER;
+    private static String DELIMITER;
 
     public static final PropertyDescriptor OPCDA_GROUP_CACHE_SERVICE = new PropertyDescriptor.Builder()
             .name("OPCDA Group Cache Service")
@@ -264,7 +262,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                             getLogger().info("[" + groupName + "] adding tag: " + itemId);
                             item = group.addItem(itemId);
                             output.append(processItem(item));
-                            getLogger().info("[" + groupName + "] adding tag to group cache: " + itemId);
+                            getLogger().info("[" + groupName + "] adding group cache: " + itemId);
                         }
                         getLogger().info("adding group to state table: " + groupName);
                         processGroup(flowfile, output.toString(), processSession);

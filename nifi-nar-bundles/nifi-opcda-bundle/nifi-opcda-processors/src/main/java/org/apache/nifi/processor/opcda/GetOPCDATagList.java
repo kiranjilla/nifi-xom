@@ -16,10 +16,9 @@
  */
 package org.apache.nifi.processor.opcda;
 
-import org.apache.nifi.annotation.behavior.*;
+import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
-import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
@@ -27,7 +26,6 @@ import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.*;
-import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.jinterop.dcom.common.JIException;
@@ -35,14 +33,12 @@ import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.da.AddFailedException;
 import org.openscada.opc.lib.da.browser.Branch;
 import org.openscada.opc.lib.da.browser.Leaf;
-import org.openscada.opc.lib.da.browser.TreeBrowser;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.logging.Logger;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -51,13 +47,13 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 @InputRequirement(Requirement.INPUT_FORBIDDEN)
 public class GetOPCDATagList extends AbstractProcessor {
 
-    private Logger log = Logger.getLogger(this.getClass().getName());
+    private static OPCDAConnection connection;
 
-    private OPCDAConnection connection;
+    private static List<PropertyDescriptor> descriptors;
 
-    private List<PropertyDescriptor> descriptors;
+    private static Set<Relationship> relationships;
 
-    private Set<Relationship> relationships;
+    private Collection<String> tags = new ConcurrentLinkedQueue<>();
 
     private String filter;
 
@@ -176,10 +172,10 @@ public class GetOPCDATagList extends AbstractProcessor {
     }
 
     @OnScheduled
-    public void onScheduled(final ProcessContext context) {
-        getLogger().info("esablishing connection from connection information derived from context");
-        connection = getConnection(context);
-        filter = context.getProperty(TAG_FILTER).getValue();
+    public void onScheduled(final ProcessContext processContext) {
+        connection = getConnection(processContext);
+        ;
+        // filter = context.getProperty(TAG_FILTER).getValue();
     }
 
     @OnStopped
@@ -189,19 +185,21 @@ public class GetOPCDATagList extends AbstractProcessor {
     }
 
     @Override
-    public void onTrigger(ProcessContext processContext, ProcessSession processSession) throws ProcessException {
+    public void onTrigger(ProcessContext processContext, ProcessSession processSession) {
         processTags(getTags(), processSession, processContext);
     }
 
-    private void processTags(List<String> itemIds, ProcessSession processSession, ProcessContext processContext) {
+    private void processTags(Collection<String> tags, ProcessSession processSession, ProcessContext processContext) {
+        getLogger().info("processing tags");
         FlowFile flowfile = processSession.create();
+        getLogger().info("flowfile process session created");
         flowfile = processSession.write(flowfile, new OutputStreamCallback() {
             @Override
             public void process(final OutputStream outStream) throws IOException {
                 try {
                     StringBuffer output = new StringBuffer();
-                    for (String item : itemIds) {
-                        output.append(item.toString() + "\n");
+                    for (String tag : tags) {
+                        output.append(tag.toString() + "\n");
                     }
                     outStream.write(output.toString().getBytes("UTF-8"));
                 } catch (Exception e) {
@@ -218,42 +216,38 @@ public class GetOPCDATagList extends AbstractProcessor {
         processSession.transfer(flowfile, REL_SUCCESS);
     }
 
-    public List<String> getTags() {
-        log.info("getting tags matching filter: " + filter);
-        List<String> itemIds = new ArrayList<String>();
+    public Collection<String> getTags() {
+        getLogger().info("retrieving tags");
+        Branch branch = null;
         try {
-            // connection.getController().connect();
-            Branch branch = connection.getTreeBrowser().browse();
-            ArrayList<String> matches = new ArrayList<String>();
+            getLogger().info("initializing tree browser");
+
+            branch = connection.getTreeBrowser().browse();
+            getLogger().info("iterating through branches");
             for (Branch b : branch.getBranches()) {
-                if (b.getName().matches(filter)) {
-                    log.info("matching tag for branch: " + b.getName());
-                    matches.add(String.format("%n[B] %s", b.getName()));
-                }
+                getLogger().info("adding tag from branch: " + b.getName());
+                tags.add(String.format("%n[B] %s", b.getName()));
             }
+            getLogger().info("iterating through leaves");
             for (Leaf l : branch.getLeaves()) {
-                if (l.getName().matches(filter)) {
-                    log.info("matching tag for leaf: " + l.getName());
-                    matches.add(String.format("%n[T] %s", l.getName()));
-                }
+                getLogger().info("adding tag from leaf: " + l.getName());
+                tags.add(String.format("%n[T] %s", l.getName()));
             }
-            populateItemsMapRecursive(branch, itemIds);
+            populateItemsMapRecursive(branch, tags);
         } catch (JIException e) {
             e.printStackTrace();
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
-
-        return itemIds;
-
+        return tags;
     }
 
-    public void populateItemsMapRecursive(Branch parent, List<String> itemIds) {
+    public void populateItemsMapRecursive(Branch parent, Collection<String> tags) {
         for (Leaf l : parent.getLeaves()) {
             try {
-                registerLeaf(l, itemIds);
+                registerLeaf(l, tags);
                 for (Branch child : parent.getBranches()) {
-                    populateItemsMapRecursive(child, itemIds);
+                    populateItemsMapRecursive(child, tags);
                 }
             } catch (JIException e) {
                 e.printStackTrace();
@@ -263,13 +257,13 @@ public class GetOPCDATagList extends AbstractProcessor {
         }
     }
 
-    private void registerLeaf(Leaf l, List<String> itemIds) throws JIException, AddFailedException {
+    private void registerLeaf(Leaf l, Collection<String> tags) throws JIException, AddFailedException {
         String itemId = l.getItemId();
-        itemIds.add(itemId);
+        tags.add(itemId);
     }
 
     private OPCDAConnection getConnection(final ProcessContext processContext) {
-        getLogger().info("aggregating connection information from context");
+        getLogger().info("instantiating connection information from context");
         ConnectionInformation connectionInformation = new ConnectionInformation();
         connectionInformation.setHost(processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue());
         connectionInformation.setDomain(processContext.getProperty(OPCDA_WORKGROUP_NAME).getValue());
