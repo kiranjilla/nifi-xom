@@ -62,7 +62,6 @@ public class GetOPCDATagStateTest {
         runner.setProperty(GetOPCDATagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
         runner.setProperty(GetOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
         runner.setProperty(GetOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
-
         runner.setProperty(GetOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
         runner.setProperty(GetOPCDATagState.ENABLE_GROUP_CACHE, (String) props.get("enable.group.cache"));
         runner.setProperty(GetOPCDATagState.CACHE_REFRESH_INTERVAL, (String) props.get("group.cache.interval.ms"));
@@ -70,23 +69,24 @@ public class GetOPCDATagStateTest {
 
         Map<String, String> attributes1 = new HashMap<String, String>();
         attributes1.put("groupName", "FU-13");
-        // attributes1.put("fragment.index", "1");
         runner.enqueue(
                 "Channel1.Device1.Tag10\n" +
                 "_System._ProjectTitle\n" +
-                "_System._TotalTagCount\n"
-                        + "_System._DateTime\n" +
-                        "_System._ActiveTagCount\n",
-
+                "_System._TotalTagCount\n" +
+                "_System._DateTime\n" +
+                "_System._ActiveTagCount\n",
                 attributes1);
+
         Map<String, String> attributes2 = new HashMap<String, String>();
         attributes2.put("groupName", "FU-14");
         runner.enqueue(
                 "Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1001\nChannel1.Device1.Tag10001\n",
                 attributes2);
+
         Map<String, String> attributes3 = new HashMap<String, String>();
         attributes3.put("groupName", "FU-15");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10002\nChannel1.Device1.Tag10003\n", attributes3);
+
         Map<String, String> attributes4 = new HashMap<String, String>();
         attributes4.put("groupName", "FU-16");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\n", attributes4);

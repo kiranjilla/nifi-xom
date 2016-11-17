@@ -2,7 +2,7 @@ package org.apache.nifi.service.opcda;
 
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
-import org.apache.nifi.client.opcda.OPCDAGroupCacheObject;
+import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.da.Group;
 
 /**
@@ -11,6 +11,10 @@ import org.openscada.opc.lib.da.Group;
 @Tags({"opcda", "cache" })
 @CapabilityDescription("Provides caching for OPCDA groups.")
 public interface OPCDAGroupCacheService {
-    public OPCDAGroupCacheObject get(final String groupName);
-    public void put(final Group group);
+
+    public Group get(final String groupName) throws JIException;
+
+    public void put(final Group group) throws JIException;
+
+    public void release (final Group group) throws JIException;
 }

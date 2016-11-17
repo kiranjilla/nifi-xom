@@ -26,6 +26,7 @@ import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.client.opcda.OPCDAGroupCacheObject;
+import org.apache.nifi.service.opcda.OPCDAGroupCache;
 import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
@@ -69,6 +70,13 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     private String DELIMITER;
 
+    public static final PropertyDescriptor OPCDA_GROUP_CACHE_SERVICE = new PropertyDescriptor.Builder()
+            .name("OPCDA Group Cache Service")
+            .description("Specifies the Controller Service to use for accessing OPCDA Group Caching.")
+            .required(true)
+            .identifiesControllerService(OPCDAGroupCache.class)
+            .build();
+
     public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor.Builder()
             .name("OPCDA_SERVER_IP_NAME")
             .description("OPC DA Server Host Name or IP Address")
@@ -106,7 +114,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             .build();
 
     public static final PropertyDescriptor OPCDA_CLASS_ID_NAME = new PropertyDescriptor.Builder()
-            .name("OPC DA Class ID")
+            .name("OPCDA_CLASS_ID_NAME")
             .description("OPC DA Class ID")
             .required(true)
             .expressionLanguageSupported(false)
@@ -253,10 +261,10 @@ public class GetOPCDATagState extends AbstractProcessor {
                         group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
                         Item item;
                         for (String itemId : itemIds) {
-                            getLogger().info("[" + groupName + "] adding item: " + itemId);
+                            getLogger().info("[" + groupName + "] adding tag: " + itemId);
                             item = group.addItem(itemId);
                             output.append(processItem(item));
-                            getLogger().info("[" + groupName + "] adding item to group cache object: " + itemId);
+                            getLogger().info("[" + groupName + "] adding tag to group cache: " + itemId);
                         }
                         getLogger().info("adding group to state table: " + groupName);
                         processGroup(flowfile, output.toString(), processSession);
@@ -275,12 +283,12 @@ public class GetOPCDATagState extends AbstractProcessor {
                     group = connection.addGroup(groupName);
                     Item item;
                     for (String itemId : itemIds) {
-                        getLogger().info("[" + groupName + "] adding item: " + itemId);
+                        getLogger().info("[" + groupName + "] adding tag: " + itemId);
                         item = group.addItem(itemId);
                         String _item = processItem(item);
                         output.append(_item);
                         if (caching) {
-                            getLogger().info("[" + groupName + "] adding item to group cache object: " + itemId);
+                            getLogger().info("[" + groupName + "] adding tag to group cache: " + itemId);
                             items.add(item);
                         }
                     }
