@@ -30,7 +30,7 @@ import org.junit.Test;
 
 
 
-public class GetOPCDATagListTest {
+public class TestGetOPCDATagList {
 
 	private Logger log = Logger.getLogger(this.getClass().getName());
 

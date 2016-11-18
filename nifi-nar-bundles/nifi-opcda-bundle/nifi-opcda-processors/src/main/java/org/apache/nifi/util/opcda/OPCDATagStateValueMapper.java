@@ -32,7 +32,7 @@ import org.jinterop.dcom.core.JIVariant;
  * @author <a href="mailto:justin.smith@summitsystemsinc.com">Justin Smith</a>
  * @author <a href="mailto:fdigirolomo@hortonworks.com">Frank DiGirolomo</a>
  */
-public class OPCDAItemStateValueMapper {
+public class OPCDATagStateValueMapper {
 
     public static Object toJavaType(JIVariant variant) throws JIException {
         int type = variant.getType();

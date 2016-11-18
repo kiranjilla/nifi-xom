@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-public class GetOPCDATagStateTest {
+public class TestGetOPCDATagState {
 
     private Logger log = Logger.getLogger(this.getClass().getName());
 

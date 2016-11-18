@@ -30,7 +30,7 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 /**
  * Created by fdigirolomo on 10/27/16.
  */
-public class OPCDAConnectionTest {
+public class TestOPCDAConnection {
 
     Properties properties = new Properties();
 

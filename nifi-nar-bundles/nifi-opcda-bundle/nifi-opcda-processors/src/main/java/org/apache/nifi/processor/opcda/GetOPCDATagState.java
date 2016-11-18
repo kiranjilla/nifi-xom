@@ -20,14 +20,13 @@ import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.*;
 import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
-import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.client.opcda.OPCDAGroupCacheObject;
 import org.apache.nifi.service.opcda.OPCDAGroupCache;
-import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
+import org.apache.nifi.util.opcda.OPCDATagStateValueMapper;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.*;
@@ -315,11 +314,11 @@ public class GetOPCDATagState extends AbstractProcessor {
         StringBuffer sb = new StringBuffer();
         try {
             ItemState itemState = item.read(false);
-            String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
+            String value = OPCDATagStateValueMapper.toJavaType(itemState.getValue()).toString();
             getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
             sb.append(item.getId())
                     .append(DELIMITER)
-                    .append(OPCDAItemStateValueMapper.toJavaType(itemState.getValue()))
+                    .append(OPCDATagStateValueMapper.toJavaType(itemState.getValue()))
                     .append(DELIMITER)
                     .append(itemState.getTimestamp().getTimeInMillis())
                     .append(DELIMITER)

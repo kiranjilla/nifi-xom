@@ -12,4 +12,6 @@ import org.apache.nifi.client.opcda.OPCDAConnection;
 public interface OPCDAConnectionPoolService {
 
     public OPCDAConnection getConnection();
+
+    public void releaseConnection(OPCDAConnection connection);
 }
