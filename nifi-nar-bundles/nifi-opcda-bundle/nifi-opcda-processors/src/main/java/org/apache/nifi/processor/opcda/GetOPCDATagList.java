@@ -53,7 +53,7 @@ public class GetOPCDATagList extends AbstractProcessor {
 
     private static Set<Relationship> relationships;
 
-    private Collection<String> tags = new ConcurrentLinkedQueue<>();
+    private static volatile Collection<String> tags = new ConcurrentLinkedQueue<>();
 
     private String filter;
 

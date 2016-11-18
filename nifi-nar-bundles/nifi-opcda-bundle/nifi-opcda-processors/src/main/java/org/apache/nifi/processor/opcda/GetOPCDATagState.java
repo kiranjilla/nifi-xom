@@ -259,7 +259,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                         group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
                         Item item;
                         for (String itemId : itemIds) {
-                            getLogger().info("[" + groupName + "] adding tag: " + itemId);
+                            getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
                             item = group.addItem(itemId);
                             output.append(processItem(item));
                             getLogger().info("[" + groupName + "] adding group cache: " + itemId);
@@ -273,7 +273,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                     processSession.read(flowfile, new InputStreamCallback() {
                         public void process(InputStream in) throws IOException {
                             if (itemIds.isEmpty()) {
-                                itemIds.addAll(IOUtils.readLines(in));
+                                itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
                             }
                         }
                     });
@@ -281,7 +281,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                     group = connection.addGroup(groupName);
                     Item item;
                     for (String itemId : itemIds) {
-                        getLogger().info("[" + groupName + "] adding tag: " + itemId);
+                        getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
                         item = group.addItem(itemId);
                         String _item = processItem(item);
                         output.append(_item);
@@ -314,7 +314,6 @@ public class GetOPCDATagState extends AbstractProcessor {
         getLogger().info("processing item: " + item.getId());
         StringBuffer sb = new StringBuffer();
         try {
-            getLogger().info("[" + item.getGroup().getName() + "] obtaining item state: " + item.getId());
             ItemState itemState = item.read(false);
             String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
             getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
@@ -328,7 +327,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                     .append(DELIMITER)
                     .append(itemState.getErrorCode())
                     .append("\n");
-            getLogger().info("item output [" + item.getId() + "] " + sb.toString());
+            getLogger().debug("item output [" + item.getId() + "] " + sb.toString());
         } catch (JIException e) {
             e.printStackTrace();
         }

@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class OPCDAGroupCache extends AbstractControllerService implements OPCDAGroupCacheService {
 
-    private Collection<Group> cache = new ConcurrentLinkedQueue<>();
+    private volatile Collection<Group> cache = new ConcurrentLinkedQueue<>();
 
     public static final PropertyDescriptor OPCDA_CACHE_GROUP_NAME = new PropertyDescriptor.Builder()
             .name("OPCDA Cache Group Name")
