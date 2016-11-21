@@ -195,13 +195,15 @@ public class GetOPCDATagList extends AbstractProcessor {
         getLogger().info("flowfile process session created");
         flowfile = processSession.write(flowfile, new OutputStreamCallback() {
             @Override
-            public void process(final OutputStream outStream) throws IOException {
+            public void process(final OutputStream out) throws IOException {
                 try {
                     StringBuffer output = new StringBuffer();
                     for (String tag : tags) {
                         output.append(tag.toString() + "\n");
                     }
-                    outStream.write(output.toString().getBytes("UTF-8"));
+                    String tag = out.toString();
+                    getLogger().info("processsing tag: " + tag);
+                    out.write(tag.toString().getBytes());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -216,24 +218,32 @@ public class GetOPCDATagList extends AbstractProcessor {
         processSession.transfer(flowfile, REL_SUCCESS);
     }
 
-    public Collection<String> getTags() {
-        getLogger().info("retrieving tags");
-        Branch branch = null;
+    public List<String> getTags() {
+        List<String> tags = new ArrayList<String>();
+        Branch parent = null;
         try {
-            getLogger().info("initializing tree browser");
+            parent = connection.getTreeBrowser().browse();
 
-            branch = connection.getTreeBrowser().browse();
-            getLogger().info("iterating through branches");
-            for (Branch b : branch.getBranches()) {
-                getLogger().info("adding tag from branch: " + b.getName());
-                tags.add(String.format("%n[B] %s", b.getName()));
+            ArrayList<String> possibleBranches = new ArrayList<String>();
+            StringBuilder possibleMatches = new StringBuilder();
+            for (Branch b : parent.getBranches()) {
+                possibleBranches.add(String.format("%n[B] %s", b.getName()));
             }
-            getLogger().info("iterating through leaves");
-            for (Leaf l : branch.getLeaves()) {
-                getLogger().info("adding tag from leaf: " + l.getName());
-                tags.add(String.format("%n[T] %s", l.getName()));
+
+            Collections.sort(possibleBranches, String.CASE_INSENSITIVE_ORDER);
+            ArrayList<String> possibleLeaves = new ArrayList<String>();
+            for (Leaf l : parent.getLeaves()) {
+                possibleLeaves.add(String.format("%n[T] %s", l.getName()));
             }
-            populateItemsMapRecursive(branch, tags);
+            Collections.sort(possibleLeaves, String.CASE_INSENSITIVE_ORDER);
+
+            for (String s : possibleBranches) {
+                possibleMatches.append(s);
+            }
+            for (String s : possibleLeaves) {
+                possibleMatches.append(s);
+            }
+            populateItemsMapRecursive(parent, tags);
         } catch (JIException e) {
             e.printStackTrace();
         } catch (UnknownHostException e) {
@@ -241,6 +251,28 @@ public class GetOPCDATagList extends AbstractProcessor {
         }
         return tags;
     }
+
+//    public Collection<String> getTags() {
+//        getLogger().info("retrieving tags");
+//        Branch branch = null;
+//        try {
+//            getLogger().info("initializing tree browser");
+//            branch = connection.getTreeBrowser().browse();
+//            for (Branch b : branch.getBranches()) {
+//                getLogger().info("iterating through branch: " + b.getName());
+//                for (Leaf l : b.getLeaves()) {
+//                    String tag = b.getName() + "." + l.getName();
+//                    getLogger().info("adding tag: " + tag);
+//                    tags.add(tag);
+//                }
+//            }
+//        } catch (JIException e) {
+//            e.printStackTrace();
+//        } catch (UnknownHostException e) {
+//            e.printStackTrace();
+//        }
+//        return tags;
+//    }
 
     public void populateItemsMapRecursive(Branch parent, Collection<String> tags) {
         for (Leaf l : parent.getLeaves()) {
@@ -256,6 +288,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             }
         }
     }
+
 
     private void registerLeaf(Leaf l, Collection<String> tags) throws JIException, AddFailedException {
         String itemId = l.getItemId();
