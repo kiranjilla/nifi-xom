@@ -119,6 +119,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             .defaultValue("10000")
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.INTEGER_VALIDATOR)
             .build();
 
     // RELATIONSHIPS
@@ -172,7 +173,6 @@ public class GetOPCDATagList extends AbstractProcessor {
     @OnScheduled
     public void onScheduled(final ProcessContext processContext) {
         connection = getConnection(processContext);
-        ;
         // filter = context.getProperty(TAG_FILTER).getValue();
     }
 
@@ -196,11 +196,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             @Override
             public void process(final OutputStream outStream) throws IOException {
                 try {
-                    StringBuffer output = new StringBuffer();
-                    for (String tag : tags) {
-                        output.append(tag.toString() + "\n");
-                    }
-                    outStream.write(output.toString().getBytes("UTF-8"));
+                    outStream.write(String.join("\n", tags).getBytes("UTF-8"));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
