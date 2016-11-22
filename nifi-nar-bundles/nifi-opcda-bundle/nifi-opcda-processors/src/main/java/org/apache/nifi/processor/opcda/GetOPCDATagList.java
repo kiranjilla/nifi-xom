@@ -30,9 +30,7 @@ import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
-import org.openscada.opc.lib.da.AddFailedException;
-import org.openscada.opc.lib.da.browser.Branch;
-import org.openscada.opc.lib.da.browser.Leaf;
+import org.openscada.opc.lib.da.browser.BaseBrowser;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -186,10 +184,11 @@ public class GetOPCDATagList extends AbstractProcessor {
 
     @Override
     public void onTrigger(ProcessContext processContext, ProcessSession processSession) {
-        processTags(getTags(), processSession, processContext);
+        populateTags();
+        processTags(processSession, processContext);
     }
 
-    private void processTags(Collection<String> tags, ProcessSession processSession, ProcessContext processContext) {
+    private void processTags(ProcessSession processSession, ProcessContext processContext) {
         getLogger().info("processing tags");
         FlowFile flowfile = processSession.create();
         getLogger().info("flowfile process session created");
@@ -216,50 +215,25 @@ public class GetOPCDATagList extends AbstractProcessor {
         processSession.transfer(flowfile, REL_SUCCESS);
     }
 
-    public Collection<String> getTags() {
-        getLogger().info("retrieving tags");
-        Branch branch = null;
-        try {
-            getLogger().info("initializing tree browser");
-
-            branch = connection.getTreeBrowser().browse();
-            getLogger().info("iterating through branches");
-            for (Branch b : branch.getBranches()) {
-                getLogger().info("adding tag from branch: " + b.getName());
-                tags.add(String.format("%n[B] %s", b.getName()));
-            }
-            getLogger().info("iterating through leaves");
-            for (Leaf l : branch.getLeaves()) {
-                getLogger().info("adding tag from leaf: " + l.getName());
-                tags.add(String.format("%n[T] %s", l.getName()));
-            }
-            populateItemsMapRecursive(branch, tags);
-        } catch (JIException e) {
-            e.printStackTrace();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-        return tags;
-    }
-
-    public void populateItemsMapRecursive(Branch parent, Collection<String> tags) {
-        for (Leaf l : parent.getLeaves()) {
+    public void populateTags() {
+        final BaseBrowser flatBrowser = connection.getFlatBrowser();
+        if (flatBrowser != null) {
             try {
-                registerLeaf(l, tags);
-                for (Branch child : parent.getBranches()) {
-                    populateItemsMapRecursive(child, tags);
+                for (final String item : connection.getFlatBrowser().browse("")) {
+                    tags.add(item);
                 }
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
             } catch (JIException e) {
                 e.printStackTrace();
-            } catch (AddFailedException e) {
-                e.printStackTrace();
+            }
+            if (getLogger().isInfoEnabled()) {
+                getLogger().info("existing tags");
+                for (String tag : tags) {
+                    getLogger().info(tag);
+                }
             }
         }
-    }
-
-    private void registerLeaf(Leaf l, Collection<String> tags) throws JIException, AddFailedException {
-        String itemId = l.getItemId();
-        tags.add(itemId);
     }
 
     private OPCDAConnection getConnection(final ProcessContext processContext) {
