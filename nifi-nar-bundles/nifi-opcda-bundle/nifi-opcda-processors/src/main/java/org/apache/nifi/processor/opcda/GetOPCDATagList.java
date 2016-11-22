@@ -106,7 +106,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             .Builder().name("Tag Filter")
             .description("OPT Tag Filter to limit or constrain tags to a particular group")
             .required(true)
-            .defaultValue("Tag10")
+            .defaultValue("")
             .expressionLanguageSupported(true)
             .addValidator(StandardValidators.REGULAR_EXPRESSION_VALIDATOR)
             .build();
@@ -219,7 +219,7 @@ public class GetOPCDATagList extends AbstractProcessor {
         final BaseBrowser flatBrowser = connection.getFlatBrowser();
         if (flatBrowser != null) {
             try {
-                for (final String item : connection.getFlatBrowser().browse("")) {
+                for (final String item : connection.getFlatBrowser().browse(filter)) {
                     tags.add(item);
                 }
             } catch (UnknownHostException e) {
