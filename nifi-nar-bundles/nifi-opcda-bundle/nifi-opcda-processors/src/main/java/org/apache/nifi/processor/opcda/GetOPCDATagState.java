@@ -152,6 +152,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             .required(true)
             .defaultValue("3600").expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
+            .addValidator(StandardValidators.INTEGER_VALIDATOR)
             .build();
 
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
@@ -209,7 +210,7 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     @OnScheduled
     public void onScheduled(final ProcessContext processContext) {
-        getLogger().info("esablishing connection from connection information derived from context");
+        getLogger().info("establishing connection from connection information derived from context");
         connection = getConnection(processContext);
         getLogger().info("connection state: " + connection.getServerState());
         caching = Boolean.parseBoolean(processContext.getProperty(ENABLE_GROUP_CACHE).getValue());
@@ -227,13 +228,12 @@ public class GetOPCDATagState extends AbstractProcessor {
     @Override
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
 
-        String groupName = null;
+        String groupName;
         Collection<String> itemIds = new ArrayList<String>();
         Collection<Item> items = new ArrayList<Item>();
 
         getLogger().info("obtaining flowfile from session");
         FlowFile flowfile = processSession.get();
-        Group group;
 
         try {
             if (flowfile != null) {
@@ -245,56 +245,13 @@ public class GetOPCDATagState extends AbstractProcessor {
                     StringBuffer output = new StringBuffer();
                     OPCDAGroupCacheObject cache = getCachedGroup(groupName);
                     if (!cache.isExpired(stateTableRefreshInterval)) {
-                        getLogger().info("utilizing cache for group: " + groupName);
-                        for (Item i : cache.getItems()) {
-                            i = cache.getItem(i);
-                            final String item = processItem(i);
-                            output.append(item);
-                        }
-                        processGroup(flowfile, output.toString(), processSession);
+                        processCachedGroup(groupName, output, cache);
                     } else {
-                        getLogger().info("removing group from expired cache: " + groupName);
-                        connection.removeGroup(cache.getGroup(), true);
-                        getLogger().info("reconstructing group for cache: " + groupName);
-                        group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
-                        Item item;
-                        for (String itemId : itemIds) {
-                            getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
-                            item = group.addItem(itemId);
-                            output.append(processItem(item));
-                            getLogger().info("[" + groupName + "] adding group cache: " + itemId);
-                        }
-                        getLogger().info("adding group to state table: " + groupName);
-                        processGroup(flowfile, output.toString(), processSession);
-                    }
-                } else {
-                    StringBuffer output = new StringBuffer();
-                    getLogger().info("reading flowfile from session");
-                    processSession.read(flowfile, new InputStreamCallback() {
-                        public void process(InputStream in) throws IOException {
-                            if (itemIds.isEmpty()) {
-                                itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
-                            }
-                        }
-                    });
-                    getLogger().info("creating group: " + groupName);
-                    group = connection.addGroup(groupName);
-                    Item item;
-                    for (String itemId : itemIds) {
-                        getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
-                        item = group.addItem(itemId);
-                        String _item = processItem(item);
-                        output.append(_item);
-                        if (caching) {
-                            getLogger().info("[" + groupName + "] adding tag to group cache: " + itemId);
-                            items.add(item);
-                        }
+                        processExpiredGroup(groupName, itemIds, output, cache);
                     }
                     processGroup(flowfile, output.toString(), processSession);
-                    if (caching) {
-                        getLogger().info("adding group to cache: " + groupName);
-                        cache.add(new OPCDAGroupCacheObject(group, items));
-                    }
+                } else {
+                    processUncachedGroup(processSession, groupName, itemIds, items, flowfile);
                 }
             }
         } catch (NotConnectedException e) {
@@ -308,6 +265,60 @@ public class GetOPCDATagState extends AbstractProcessor {
         } catch (AddFailedException e) {
             e.printStackTrace();
         }
+    }
+
+    private void processUncachedGroup(ProcessSession processSession, String groupName, final Collection<String> itemIds, Collection<Item> items, FlowFile flowfile) throws NotConnectedException, UnknownHostException, JIException, DuplicateGroupException, AddFailedException {
+        StringBuffer output = new StringBuffer();
+        getLogger().info("reading flowfile from session");
+        processSession.read(flowfile, new InputStreamCallback() {
+            public void process(InputStream in) throws IOException {
+                if (itemIds.isEmpty()) {
+                    itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
+                }
+            }
+        });
+        getLogger().info("creating group: " + groupName);
+        Group group = connection.addGroup(groupName);
+        Item item;
+        for (String itemId : itemIds) {
+            getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
+            item = group.addItem(itemId);
+            String itemDetail = processItem(item);
+            output.append(itemDetail);
+            if (caching) {
+                getLogger().info("[" + groupName + "] adding tag to group cache: " + itemId);
+                items.add(item);
+            }
+        }
+        processGroup(flowfile, output.toString(), processSession);
+        if (caching) {
+            getLogger().info("adding group to cache: " + groupName);
+            cache.add(new OPCDAGroupCacheObject(group, items));
+        }
+    }
+
+    private void processCachedGroup(String groupName, StringBuffer output, OPCDAGroupCacheObject cache) {
+        getLogger().info("utilizing cache for group: " + groupName);
+        for (Item item : cache.getItems()) {
+            item = cache.getItem(item);
+            final String itemDetail = processItem(item);
+            output.append(itemDetail);
+        }
+    }
+
+    private void processExpiredGroup(String groupName, Collection<String> itemIds, StringBuffer output, OPCDAGroupCacheObject cache) throws JIException, NotConnectedException, UnknownHostException, DuplicateGroupException, AddFailedException {
+        getLogger().info("removing group from expired cache: " + groupName);
+        connection.removeGroup(cache.getGroup(), true);
+        getLogger().info("reconstructing group for cache: " + groupName);
+        Group group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
+        Item item;
+        for (String itemId : itemIds) {
+            getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
+            item = group.addItem(itemId);
+            output.append(processItem(item));
+            getLogger().info("[" + groupName + "] adding group cache: " + itemId);
+        }
+        getLogger().info("adding group to state table: " + groupName);
     }
 
     private String processItem(Item item) {
@@ -376,11 +387,11 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     private OPCDAGroupCacheObject getCachedGroup(String groupName) {
         getLogger().info("retrieving state table for group: " + groupName);
-        for (OPCDAGroupCacheObject c: cache) {
+        for (OPCDAGroupCacheObject groupCacheObject: cache) {
             try {
-                if (c.getGroup().getName().equals(groupName)) {
+                if (groupCacheObject.getGroup().getName().equals(groupName)) {
                     getLogger().info("group resides in cache: " + groupName);
-                    return c;
+                    return groupCacheObject;
                 } else {
                     getLogger().info("group not found in cache: " + groupName);
                 }
