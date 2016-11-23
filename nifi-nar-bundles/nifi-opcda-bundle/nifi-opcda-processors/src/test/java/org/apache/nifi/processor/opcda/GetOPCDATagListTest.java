@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Logger;
 
 import org.apache.nifi.util.MockFlowFile;
 import org.apache.nifi.util.TestRunner;
@@ -31,8 +30,6 @@ import org.junit.Test;
 
 
 public class GetOPCDATagListTest {
-
-	private Logger log = Logger.getLogger(this.getClass().getName());
 
 	private Properties props = new Properties();
 
@@ -52,8 +49,7 @@ public class GetOPCDATagListTest {
 	@Test
 	public void testFetchTagList() throws IOException {
 
-
-		List<MockFlowFile> flowFiles = null;
+		List<MockFlowFile> flowFiles;
 		final TestRunner runner = TestRunners.newTestRunner(new GetOPCDATagList());
 
 		runner.setValidateExpressionUsage(false);
