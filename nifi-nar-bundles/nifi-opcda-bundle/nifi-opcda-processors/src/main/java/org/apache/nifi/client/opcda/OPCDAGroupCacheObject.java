@@ -54,7 +54,7 @@ public class OPCDAGroupCacheObject {
         Item item;
         try {
             item = group.addItem(itemId);
-            //return item;
+            return item;
         } catch (JIException e) {
             e.printStackTrace();
         } catch (AddFailedException e) {
