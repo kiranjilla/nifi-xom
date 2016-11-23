@@ -215,9 +215,7 @@ public class GetOPCDATagList extends AbstractProcessor {
         final BaseBrowser flatBrowser = connection.getFlatBrowser();
         if (flatBrowser != null) {
             try {
-                for (final String item : connection.getFlatBrowser().browse(filter)) {
-                    tags.add(item);
-                }
+                tags.addAll(connection.getFlatBrowser().browse(filter));
             } catch (UnknownHostException e) {
                 e.printStackTrace();
             } catch (JIException e) {

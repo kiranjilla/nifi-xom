@@ -46,7 +46,7 @@ public class OPCDAGroupCacheObject {
 
     public Item getItem(Item item) {
         log.info("get item: " + item.getId());
-       return group.findItemByClientHandle(item.getClientHandle());
+        return group.findItemByClientHandle(item.getClientHandle());
     }
 
     public Item addItem(final String itemId) {
@@ -54,6 +54,7 @@ public class OPCDAGroupCacheObject {
         Item item;
         try {
             item = group.addItem(itemId);
+            //return item;
         } catch (JIException e) {
             e.printStackTrace();
         } catch (AddFailedException e) {

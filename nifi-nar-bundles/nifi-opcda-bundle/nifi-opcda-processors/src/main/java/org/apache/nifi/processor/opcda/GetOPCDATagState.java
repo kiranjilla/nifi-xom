@@ -245,7 +245,8 @@ public class GetOPCDATagState extends AbstractProcessor {
                     StringBuffer output = new StringBuffer();
                     OPCDAGroupCacheObject cache = getCachedGroup(groupName);
                     if (!cache.isExpired(stateTableRefreshInterval)) {
-                        processCachedGroup(groupName, output, cache);
+                        getLogger().info("utilizing cache for group: " + groupName);
+                        processCachedGroup(output, cache);
                     } else {
                         processExpiredGroup(groupName, itemIds, output, cache);
                     }
@@ -297,8 +298,7 @@ public class GetOPCDATagState extends AbstractProcessor {
         }
     }
 
-    private void processCachedGroup(String groupName, StringBuffer output, OPCDAGroupCacheObject cache) {
-        getLogger().info("utilizing cache for group: " + groupName);
+    private void processCachedGroup(StringBuffer output, OPCDAGroupCacheObject cache) {
         for (Item item : cache.getItems()) {
             item = cache.getItem(item);
             final String itemDetail = processItem(item);
