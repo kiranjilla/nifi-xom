@@ -26,11 +26,9 @@ public class OPCDAGroupCache extends AbstractControllerService implements OPCDAG
 
     @Override
     public Group get(String groupName) throws JIException {
-        Iterator<Group> i = cache.iterator();
-        while (i.hasNext()) {
-            Group g = i.next();
-            if (g.getName().equals(groupName)) {
-                return g;
+        for (Group group : cache) {
+            if (group.getName().equals(groupName)) {
+                return group;
             }
         }
         return null;
@@ -38,7 +36,8 @@ public class OPCDAGroupCache extends AbstractControllerService implements OPCDAG
 
     @Override
     public void put(Group group) throws JIException {
-        OPCDAGroupCacheObject object = new OPCDAGroupCacheObject(group);
+        OPCDAGroupCacheObject groupCacheObject = new OPCDAGroupCacheObject(group);
+        //TODO Add other relevant details
     }
 
     public void release(Group group) throws JIException {

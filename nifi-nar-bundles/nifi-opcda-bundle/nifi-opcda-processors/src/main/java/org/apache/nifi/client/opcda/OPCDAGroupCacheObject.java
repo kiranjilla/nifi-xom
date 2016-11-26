@@ -37,8 +37,8 @@ public class OPCDAGroupCacheObject {
     public OPCDAGroupCacheObject(Group group, Collection<Item> items) throws JIException {
         this.groupName = group.getName();
         log.info("instantiating state table for group: " + groupName);
-        for (final Item i : items) {
-            log.info("[" + groupName + "]: " + i.getId());
+        for (final Item item : items) {
+            log.info("[" + groupName + "]: " + item.getId());
         }
         this.group = group;
         this.items = items;
@@ -46,14 +46,15 @@ public class OPCDAGroupCacheObject {
 
     public Item getItem(Item item) {
         log.info("get item: " + item.getId());
-       return group.findItemByClientHandle(item.getClientHandle());
+        return group.findItemByClientHandle(item.getClientHandle());
     }
 
     public Item addItem(final String itemId) {
         log.info("get item: " + itemId);
-        Item i;
+        Item item;
         try {
-            i = group.addItem(itemId);
+            item = group.addItem(itemId);
+            return item;
         } catch (JIException e) {
             e.printStackTrace();
         } catch (AddFailedException e) {
@@ -64,13 +65,12 @@ public class OPCDAGroupCacheObject {
 
     public boolean isExpired(Integer refreshInterval) {
         log.info("checking group expiry: " + groupName);
-        boolean expired = false;
         if (!refreshTimestamp.plus(refreshInterval).isBeforeNow()) {
-            log.info("group exprired: " + groupName);
-            expired = true;
+            log.info("group expired: " + groupName);
+            return true;
         }
         log.info("group remain relevant: " + groupName);
-        return expired;
+        return false;
     }
 
 }

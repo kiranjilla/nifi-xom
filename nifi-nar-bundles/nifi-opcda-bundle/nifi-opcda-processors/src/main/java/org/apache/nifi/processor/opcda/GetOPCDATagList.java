@@ -119,6 +119,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             .defaultValue("10000")
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.INTEGER_VALIDATOR)
             .build();
 
     // RELATIONSHIPS
@@ -173,6 +174,7 @@ public class GetOPCDATagList extends AbstractProcessor {
     public void onScheduled(final ProcessContext processContext) {
         connection = getConnection(processContext);
         filter = processContext.getProperty(TAG_FILTER).getValue();
+
     }
 
     @OnStopped
@@ -214,9 +216,7 @@ public class GetOPCDATagList extends AbstractProcessor {
         final BaseBrowser flatBrowser = connection.getFlatBrowser();
         if (flatBrowser != null) {
             try {
-                for (final String item : connection.getFlatBrowser().browse(filter)) {
-                    tags.add(item);
-                }
+                tags.addAll(connection.getFlatBrowser().browse(filter));
             } catch (UnknownHostException e) {
                 e.printStackTrace();
             } catch (JIException e) {

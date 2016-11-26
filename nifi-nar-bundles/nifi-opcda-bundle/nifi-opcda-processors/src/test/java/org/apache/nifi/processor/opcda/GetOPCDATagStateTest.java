@@ -28,11 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.logging.Logger;
 
 public class GetOPCDATagStateTest {
-
-    private Logger log = Logger.getLogger(this.getClass().getName());
 
     private Properties props = new Properties();
 
@@ -54,7 +51,7 @@ public class GetOPCDATagStateTest {
     @Test
     public void testQueryOPCDATagState() throws IOException {
 
-        List<MockFlowFile> flowFiles = null;
+        List<MockFlowFile> flowFiles;
         final TestRunner runner = TestRunners.newTestRunner(new GetOPCDATagState());
 
         runner.setProperty(GetOPCDATagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
@@ -67,7 +64,7 @@ public class GetOPCDATagStateTest {
         runner.setProperty(GetOPCDATagState.CACHE_REFRESH_INTERVAL, (String) props.get("group.cache.interval.ms"));
         runner.setProperty(GetOPCDATagState.OUTPUT_DELIMIITER, (String) props.get("output.delimiter"));
 
-        Map<String, String> attributes1 = new HashMap<String, String>();
+        Map<String, String> attributes1 = new HashMap<>();
         attributes1.put("groupName", "FU-13");
         runner.enqueue(
                 "Channel1.Device1.Tag10\n" +
@@ -77,35 +74,35 @@ public class GetOPCDATagStateTest {
                 "_System._ActiveTagCount\n",
                 attributes1);
 
-        Map<String, String> attributes2 = new HashMap<String, String>();
+        Map<String, String> attributes2 = new HashMap<>();
         attributes2.put("groupName", "FU-14");
         runner.enqueue(
                 "Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1001\nChannel1.Device1.Tag10001\n",
                 attributes2);
 
-        Map<String, String> attributes3 = new HashMap<String, String>();
+        Map<String, String> attributes3 = new HashMap<>();
         attributes3.put("groupName", "FU-15");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10002\nChannel1.Device1.Tag10003\n", attributes3);
 
-        Map<String, String> attributes4 = new HashMap<String, String>();
+        Map<String, String> attributes4 = new HashMap<>();
         attributes4.put("groupName", "FU-16");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\n", attributes4);
-        Map<String, String> attributes5 = new HashMap<String, String>();
+        Map<String, String> attributes5 = new HashMap<>();
         attributes5.put("groupName", "FU-17");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\n", attributes5);
-        Map<String, String> attributes6 = new HashMap<String, String>();
+        Map<String, String> attributes6 = new HashMap<>();
         attributes6.put("groupName", "FU-18");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\n", attributes6);
-        Map<String, String> attributes7 = new HashMap<String, String>();
+        Map<String, String> attributes7 = new HashMap<>();
         attributes7.put("groupName", "FU-19");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\n", attributes7);
-        Map<String, String> attributes8 = new HashMap<String, String>();
+        Map<String, String> attributes8 = new HashMap<>();
         attributes8.put("groupName", "FU-20");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\n", attributes8);
-        Map<String, String> attributes9 = new HashMap<String, String>();
+        Map<String, String> attributes9 = new HashMap<>();
         attributes9.put("groupName", "FU-21");
         runner.enqueue("Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\n", attributes9);
-        Map<String, String> attributes10 = new HashMap<String, String>();
+        Map<String, String> attributes10 = new HashMap<>();
         attributes10.put("groupName", "FU-22");
         runner.enqueue(
                 "Channel1.Device1.Tag1\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1007\nChannel1.Device1.Tag10007\nChannel1.Device1.Tag1008\nChannel1.Device1.Tag10008\nChannel1.Device1.Tag1009\nChannel1.Device1.Tag10009\nChannel1.Device1.Tag1003\nChannel1.Device1.Tag10003\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10003\nChannel1.Device1.Tag1003\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1006\nChannel1.Device1.Tag10006\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\nChannel1.Device1.Tag1002\nChannel1.Device1.Tag10000\n",
