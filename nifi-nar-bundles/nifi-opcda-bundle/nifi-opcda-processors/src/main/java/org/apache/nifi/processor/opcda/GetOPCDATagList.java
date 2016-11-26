@@ -53,7 +53,7 @@ public class GetOPCDATagList extends AbstractProcessor {
 
     private static volatile Collection<String> tags = new ConcurrentLinkedQueue<>();
 
-    private String filter;
+    private static String filter;
 
     // PROPERTIES
     public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor
@@ -172,12 +172,11 @@ public class GetOPCDATagList extends AbstractProcessor {
     @OnScheduled
     public void onScheduled(final ProcessContext processContext) {
         connection = getConnection(processContext);
-        ;
-        // filter = context.getProperty(TAG_FILTER).getValue();
+        filter = processContext.getProperty(TAG_FILTER).getValue();
     }
 
     @OnStopped
-    public void onStopped(final ProcessContext context) {
+    public void onStopped() {
         getLogger().info("disconnecting");
         connection.disconnect();
     }
@@ -196,11 +195,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             @Override
             public void process(final OutputStream outStream) throws IOException {
                 try {
-                    StringBuffer output = new StringBuffer();
-                    for (String tag : tags) {
-                        output.append(tag.toString() + "\n");
-                    }
-                    outStream.write(output.toString().getBytes("UTF-8"));
+                    outStream.write(String.join("\n", tags).getBytes("UTF-8"));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

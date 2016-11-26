@@ -19,7 +19,7 @@ public class OPCDAConnection extends Server {
 
     private Logger log = Logger.getLogger(getClass().getName());
 
-    private Server server;
+    private static volatile Server server;
 
     private String status;
 
