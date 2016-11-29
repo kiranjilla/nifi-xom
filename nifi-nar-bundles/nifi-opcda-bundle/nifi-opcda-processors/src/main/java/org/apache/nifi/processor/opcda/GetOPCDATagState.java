@@ -255,16 +255,9 @@ public class GetOPCDATagState extends AbstractProcessor {
                     processUncachedGroup(processSession, groupName, itemIds, items, flowfile);
                 }
             }
-        } catch (NotConnectedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        } catch (JIException e) {
-            e.printStackTrace();
-        } catch (DuplicateGroupException e) {
-            e.printStackTrace();
-        } catch (AddFailedException e) {
-            e.printStackTrace();
+            processSession.transfer(flowfile, REL_FAILURE);
         }
     }
 
@@ -326,19 +319,21 @@ public class GetOPCDATagState extends AbstractProcessor {
         StringBuffer sb = new StringBuffer();
         try {
             ItemState itemState = item.read(false);
-            String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
-            getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
-            sb.append(item.getId())
-                    .append(DELIMITER)
-                    .append(OPCDAItemStateValueMapper.toJavaType(itemState.getValue()))
-                    .append(DELIMITER)
-                    .append(itemState.getTimestamp().getTimeInMillis())
-                    .append(DELIMITER)
-                    .append(itemState.getQuality())
-                    .append(DELIMITER)
-                    .append(itemState.getErrorCode())
-                    .append("\n");
-            getLogger().debug("item output [" + item.getId() + "] " + sb.toString());
+            if (itemState != null) {
+                String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
+                getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
+                sb.append(item.getId())
+                        .append(DELIMITER)
+                        .append(OPCDAItemStateValueMapper.toJavaType(itemState.getValue()))
+                        .append(DELIMITER)
+                        .append(itemState.getTimestamp().getTimeInMillis())
+                        .append(DELIMITER)
+                        .append(itemState.getQuality())
+                        .append(DELIMITER)
+                        .append(itemState.getErrorCode())
+                        .append("\n");
+                getLogger().debug("item output [" + item.getId() + "] " + sb.toString());
+            }
         } catch (JIException e) {
             e.printStackTrace();
         }
