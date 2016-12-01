@@ -13,36 +13,41 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @author <a href="mailto:sbabu@hortonworks.com">Sekhar Babu</a>
+ * @author <a href="mailto:fdigirolomo@hortonworks.com">Frank DiGirolomo</a>
+ * @author <a href="mailto:kerra@hortonworks.com">Kiran Erra</a>
+ *
  */
+
 package org.apache.nifi.processor.opcda;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.nifi.annotation.behavior.*;
+import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
+import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
-import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.client.opcda.OPCDAGroupCacheObject;
-import org.apache.nifi.service.opcda.OPCDAGroupCache;
-import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.*;
 import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
+import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
-import org.openscada.opc.lib.common.NotConnectedException;
-import org.openscada.opc.lib.da.*;
+import org.openscada.opc.lib.da.Group;
+import org.openscada.opc.lib.da.Item;
+import org.openscada.opc.lib.da.ItemState;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
@@ -68,12 +73,12 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     private static String DELIMITER;
 
-    public static final PropertyDescriptor OPCDA_GROUP_CACHE_SERVICE = new PropertyDescriptor.Builder()
+/*    public static final PropertyDescriptor OPCDA_GROUP_CACHE_SERVICE = new PropertyDescriptor.Builder()
             .name("OPCDA Group Cache Service")
             .description("Specifies the Controller Service to use for accessing OPCDA Group Caching.")
             .required(true)
             .identifiesControllerService(OPCDAGroupCache.class)
-            .build();
+            .build();*/
 
     public static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor.Builder()
             .name("OPCDA_SERVER_IP_NAME")
@@ -305,7 +310,6 @@ public class GetOPCDATagState extends AbstractProcessor {
                     }
                     processGroup(flowfile, output.toString(), processSession);
                     if (caching) {
-                        getLogger().info("adding group to cache: " + groupName);
                         cache.add(new OPCDAGroupCacheObject(group, items));
                     }
                 }

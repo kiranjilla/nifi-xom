@@ -13,7 +13,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * @author <a href="mailto:sbabu@hortonworks.com">Sekhar Babu</a>
+ * @author <a href="mailto:fdigirolomo@hortonworks.com">Frank DiGirolomo</a>
  */
+
 package org.apache.nifi.processor.opcda;
 
 import org.apache.nifi.annotation.behavior.InputRequirement;
