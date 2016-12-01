@@ -204,11 +204,11 @@ public class GetOPCDATagList extends AbstractProcessor {
             }
         });
 
-        String fileName = "file-" + processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue();
+        String fileName = "tags-" + processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue();
         if (fileName != null) {
             flowfile = processSession.putAttribute(flowfile, "filename", fileName);
         }
-        processSession.getProvenanceReporter().receive(flowfile, fileName);
+        //processSession.getProvenanceReporter().receive(flowfile, fileName);
         processSession.transfer(flowfile, REL_SUCCESS);
     }
 

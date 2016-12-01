@@ -41,24 +41,4 @@ public class OPCDAConnection extends Server {
         }
     }
 
-//    @Override
-//    public void connect() {
-//        try {
-//            super.connect();
-//            this.status = OPCDAConnectionStatus.UNAVAILABLE;
-//        } catch (UnknownHostException e) {
-//            e.printStackTrace();
-//        } catch (JIException e) {
-//            e.printStackTrace();
-//        } catch (AlreadyConnectedException e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    @Override
-//    public void disconnect() {
-//        super.disconnect();
-//        this.status = OPCDAConnectionStatus.AVAILABLE;
-//    }
-
 }
