@@ -304,6 +304,10 @@ public class GetOPCDATagState extends AbstractProcessor {
                         output.append(_item);
                     }
                     processGroup(flowfile, output.toString(), processSession);
+                    if (caching) {
+                        getLogger().info("adding group to cache: " + groupName);
+                        cache.add(new OPCDAGroupCacheObject(group, items));
+                    }
                 }
             }
         } catch (final Exception e) {

@@ -69,7 +69,7 @@ public class OPCDAGroupCacheObject {
             log.info("group expired: " + groupName);
             return true;
         }
-        log.info("group remain relevant: " + groupName);
+        log.info("group remains relevant: " + groupName);
         return false;
     }
 
