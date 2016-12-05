@@ -80,10 +80,10 @@ public class OPCDAGroupCacheObject {
     public boolean isExpired(final Integer refreshInterval) {
         log.info("checking group expiry: " + groupName);
         if (!refreshTimestamp.plus(refreshInterval).isBeforeNow()) {
-            log.info("group expired: " + groupName);
+            log.info("cached group expired: " + groupName);
             return true;
         }
-        log.info("group remain relevant: " + groupName);
+        log.info("cached group remains relevant: " + groupName);
         return false;
     }
 
