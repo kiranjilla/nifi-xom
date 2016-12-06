@@ -149,7 +149,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             .build();
 
     static final PropertyDescriptor CACHE_REFRESH_INTERVAL = new PropertyDescriptor.Builder()
-            .name("Cache Refresh Interval")
+            .name("Cache Refresh Interval In Miliseconds")
             .description("Time in seconds to refresh groups/items in State Table")
             .required(true)
             .defaultValue("3600").expressionLanguageSupported(false)
