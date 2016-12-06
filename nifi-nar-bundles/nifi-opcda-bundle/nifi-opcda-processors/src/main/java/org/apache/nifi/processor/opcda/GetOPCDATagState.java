@@ -266,6 +266,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                         }
                     } else {
                         getLogger().info("refreshing group cache: " + groupName);
+                        assert _cache != null;
                         connection.removeGroup(_cache.getGroup(), true);
                         _cache.getGroup().remove();
                         Group group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
