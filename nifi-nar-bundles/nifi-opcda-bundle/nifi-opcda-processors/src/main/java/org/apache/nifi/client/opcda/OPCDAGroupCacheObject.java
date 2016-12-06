@@ -22,7 +22,6 @@ package org.apache.nifi.client.opcda;
 import lombok.Data;
 import org.jinterop.dcom.common.JIException;
 import org.joda.time.DateTime;
-import org.openscada.opc.lib.da.AddFailedException;
 import org.openscada.opc.lib.da.Group;
 import org.openscada.opc.lib.da.Item;
 
@@ -44,12 +43,12 @@ public class OPCDAGroupCacheObject {
 
     public OPCDAGroupCacheObject(Group group) throws JIException {
         log.info("instantiating cache for group: " + groupName);
-        this.groupName = group.getName();
+        groupName = group.getName();
         this.group = group;
     }
 
     public OPCDAGroupCacheObject(final Group group, final Collection<Item> items) throws JIException {
-        this.groupName = group.getName();
+        groupName = group.getName();
         log.info("instantiating cache for group: " + groupName);
         for (final Item item : items) {
             log.info("[" + groupName + "]: " + item.getId());
@@ -63,19 +62,17 @@ public class OPCDAGroupCacheObject {
         return group.findItemByClientHandle(item.getClientHandle());
     }
 
-    public Item addItem(final String itemId) {
-        log.info("add item: " + itemId);
-        Item item;
-        try {
-            item = group.addItem(itemId);
-            return item;
-        } catch (JIException e) {
-            e.printStackTrace();
-        } catch (AddFailedException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
+//    public Item addItem(final String itemId) {
+//        log.info("add item: " + itemId);
+//        Item item;
+//        try {
+//            item = group.addItem(itemId);
+//            return item;
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//        return null;
+//    }
 
     public boolean isExpired(final Integer refreshInterval) {
         log.info("checking group expiry: " + groupName);

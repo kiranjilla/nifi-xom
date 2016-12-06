@@ -49,7 +49,6 @@ import org.openscada.opc.lib.da.ItemState;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -242,7 +241,6 @@ public class GetOPCDATagState extends AbstractProcessor {
     @Override
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
 
-        Group group;
         String groupName;
         Collection<String> itemIds = new ArrayList<>();
         Collection<Item> items = new ArrayList<>();
@@ -256,9 +254,9 @@ public class GetOPCDATagState extends AbstractProcessor {
                 groupName = flowfile.getAttribute("groupName");
                 getLogger().info("processing group: " + groupName);
                 if (caching && ifCached(groupName)) {
-                    getLogger().info("utilizing cache for group: " + groupName);
                     OPCDAGroupCacheObject _cache = getCachedGroup(groupName);
                     if (_cache != null && !_cache.isExpired(cacheExpirationInterval)) {
+                        getLogger().info("utilizing cache for group: " + groupName);
                         for (Item i : _cache.getItems()) {
                             i = _cache.getItem(i);
                             final String item = processItem(i);
@@ -267,11 +265,15 @@ public class GetOPCDATagState extends AbstractProcessor {
                             }
                         }
                     } else {
-                        getLogger().info("group cached expired: " + groupName);
+                        getLogger().info("refreshing group cache: " + groupName);
                         connection.removeGroup(_cache.getGroup(), true);
                         _cache.getGroup().remove();
-                        getLogger().info("reconstructing group for cache: " + groupName);
-                        group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
+                        Group group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
+                        processSession.read(flowfile, in -> {
+                            if (itemIds.isEmpty()) {
+                                itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
+                            }
+                        });
                         for (String itemId : itemIds) {
                             getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
                             final Item item = group.addItem(itemId);
@@ -280,11 +282,10 @@ public class GetOPCDATagState extends AbstractProcessor {
                                 output.append(_item);
                             }
                         }
-                        getLogger().info("refreshing group cache: " + groupName);
                         cache.add(new OPCDAGroupCacheObject(group, items));
                     }
                 } else if (caching && !ifCached(groupName)) {
-                    group = connection.addGroup(groupName);
+                    Group group = connection.addGroup(groupName);
                     getLogger().info("caching group: " + groupName);
                     processSession.read(flowfile, in -> {
                         if (itemIds.isEmpty()) {
@@ -303,7 +304,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                     getLogger().info("adding group to cache: " + groupName);
                     cache.add(new OPCDAGroupCacheObject(group, items));
                 } else {
-                    group = connection.addGroup(groupName);
+                    Group group = connection.addGroup(groupName);
                     getLogger().info("creating and processing group: " + groupName);
                     processSession.read(flowfile, (InputStream in) -> {
                         if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));

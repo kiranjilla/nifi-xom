@@ -30,7 +30,6 @@ import java.util.logging.Logger;
 public class OPCDAItemStateValueMapper {
 
     private static Logger log = Logger.getLogger("OPCDAItemStateValueMapper");
-    public static final String DEFAULT_MSG = "Using default case for variant conversion: %s : %s : %s";
 
     public static Object toJavaType(JIVariant variant) throws JIException {
         int type = variant.getType();
@@ -41,52 +40,47 @@ public class OPCDAItemStateValueMapper {
         } else {
             switch (type) {
                 case JIVariant.VT_I1:
-                    Byte b = Byte.valueOf((byte) variant.getObjectAsChar());
+                    Byte b = (byte) variant.getObjectAsChar();
                     log.info("returning char: " + b.toString());
                     return b;
                 case JIVariant.VT_I2:
-                    return Short.valueOf(variant.getObjectAsShort());
+                    return variant.getObjectAsShort();
                 case JIVariant.VT_I4:
-                    return Integer.valueOf(variant.getObjectAsInt());
+                    return variant.getObjectAsInt();
                 case JIVariant.VT_I8:
                 case JIVariant.VT_INT:
-                    return Long.valueOf(variant.getObjectAsInt());
+                    return (long) variant.getObjectAsInt();
                 case JIVariant.VT_DATE:
                     return variant.getObjectAsDate();
                 case JIVariant.VT_R4:
-                    return Float.valueOf(variant.getObjectAsFloat());
+                    return variant.getObjectAsFloat();
                 case JIVariant.VT_R8:
-                    return Double.valueOf(variant.getObjectAsDouble());
+                    return variant.getObjectAsDouble();
                 case JIVariant.VT_UI1:
-                    return Byte.valueOf(variant.getObjectAsUnsigned().getValue().byteValue());
+                    return variant.getObjectAsUnsigned().getValue().byteValue();
                 case JIVariant.VT_UI2:
                     return variant.getObjectAsUnsigned().getValue().toString();
                 case JIVariant.VT_UI4:
                 case JIVariant.VT_UINT:
-                    return Integer.valueOf(variant.getObjectAsUnsigned().getValue().intValue());
+                    return variant.getObjectAsUnsigned().getValue().intValue();
                 case JIVariant.VT_BSTR:
                     return String.valueOf(variant.getObjectAsString2());
                 case JIVariant.VT_BOOL:
-                    return Boolean.valueOf(variant.getObjectAsBoolean());
+                    return variant.getObjectAsBoolean();
                 case JIVariant.VT_CY:
                     JICurrency currency = (JICurrency) variant.getObject();
-                    BigDecimal cyRetVal = currencyToBigDecimal(currency);
-                    return cyRetVal;
+                    return currencyToBigDecimal(currency);
                 default:
-                    final String value = (variant.isByRefFlagSet() ? variant.getObject().toString() : "");
-                    return value;
-
+                    return (variant.isByRefFlagSet() ? variant.getObject().toString() : "");
             }
         }
     }
 
     private static BigDecimal currencyToBigDecimal(JICurrency currency) {
-        BigDecimal cyRetVal = new BigDecimal(currency.getUnits() + ((double) currency.getFractionalUnits() / 10000));
-        return cyRetVal;
+        return new BigDecimal(currency.getUnits() + ((double) currency.getFractionalUnits() / 10000));
     }
 
-
-    public static String dumpValue(Object value) throws JIException {
+    private static String dumpValue(Object value) throws JIException {
         String output = null;
         if (value instanceof JIVariant) {
             JIVariant variant = (JIVariant) value;
@@ -128,7 +122,7 @@ public class OPCDAItemStateValueMapper {
         return output;
     }
 
-    public static Object[] jIArrayToJavaArray(JIArray jIArray, int type) {
+    private static Object[] jIArrayToJavaArray(JIArray jIArray, int type) {
 
         Object[] objArray = (Object[]) jIArray.getArrayInstance();
         int arrayLength = objArray.length;
