@@ -47,9 +47,9 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 @InputRequirement(Requirement.INPUT_FORBIDDEN)
 public class GetOPCDATagList extends AbstractProcessor {
 
-    protected volatile OPCDAConnection connection;
+    private volatile OPCDAConnection connection;
 
-    protected volatile Collection<String> tags = new ConcurrentLinkedQueue<>();
+    private volatile Collection<String> tags = new ConcurrentLinkedQueue<>();
 
     private static String filter;
 
@@ -196,7 +196,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             }
         });
 
-        String fileName = "tags-" + processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue();
+        final String fileName = "tags-" + processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue();
         flowfile = processSession.putAttribute(flowfile, "filename", fileName);
         //processSession.getProvenanceReporter().receive(flowfile, fileName);
         processSession.transfer(flowfile, REL_SUCCESS);
