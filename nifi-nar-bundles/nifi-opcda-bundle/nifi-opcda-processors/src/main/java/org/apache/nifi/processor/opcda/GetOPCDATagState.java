@@ -60,7 +60,7 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     private volatile OPCDAConnection connection;
 
-    private volatile Collection<OPCDAGroupCacheObject> cache = new ConcurrentLinkedDeque<>();
+    private volatile Collection<OPCDAGroupCacheObject> cache = new ArrayList<>();
 
     private static boolean caching = false;
 
@@ -240,6 +240,7 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     @Override
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
+        getLogger().info("[" + processContext.getName() + "]: triggered");
 
         String groupName;
         Collection<String> itemIds = new ArrayList<>();

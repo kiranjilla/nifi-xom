@@ -49,7 +49,7 @@ public class GetOPCDATagList extends AbstractProcessor {
 
     private volatile OPCDAConnection connection;
 
-    private volatile Collection<String> tags = new ConcurrentLinkedQueue<>();
+    private volatile Collection<String> tags = new ArrayList<>();
 
     private static String filter;
 
@@ -180,6 +180,7 @@ public class GetOPCDATagList extends AbstractProcessor {
 
     @Override
     public void onTrigger(ProcessContext processContext, ProcessSession processSession) {
+        getLogger().info("[" + processContext.getName() + "]: triggered");
         populateTags();
         processTags(processSession, processContext);
     }
