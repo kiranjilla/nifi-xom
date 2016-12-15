@@ -64,8 +64,8 @@ public class GetOPCDATagStateTest {
         runner.setProperty(GetOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
         runner.setProperty(GetOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
         runner.setProperty(GetOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
-        runner.setProperty(GetOPCDATagState.ENABLE_GROUP_CACHE, (String) props.get("enable.group.cache"));
-        runner.setProperty(GetOPCDATagState.CACHE_REFRESH_INTERVAL, (String) props.get("group.cache.interval.ms"));
+//        runner.setProperty(GetOPCDATagState.ENABLE_GROUP_CACHE, (String) props.get("enable.group.cache"));
+//        runner.setProperty(GetOPCDATagState.CACHE_REFRESH_INTERVAL, (String) props.get("group.cache.interval.ms"));
         runner.setProperty(GetOPCDATagState.OUTPUT_DELIMIITER, (String) props.get("output.delimiter"));
 
         Map<String, String> attributes1 = new HashMap<>();

@@ -20,11 +20,15 @@
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-opcda-bundle</artifactId>
-        <version>1.0.0-RC3</version>
+        <version>1.0.0-RC3-SNAPSHOT</version>
     </parent>
+
 
     <artifactId>nifi-opcda-nar</artifactId>
     <packaging>nar</packaging>
+    <build>
+        <finalName>${project.artifactId}-${project.version}-${maven.build.timestamp}</finalName>
+    </build>
 
     <properties>
         <maven.javadoc.skip>true</maven.javadoc.skip>

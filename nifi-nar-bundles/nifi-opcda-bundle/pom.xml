@@ -24,7 +24,7 @@
 
     <groupId>org.apache.nifi</groupId>
     <artifactId>nifi-opcda-bundle</artifactId>
-    <version>1.0.0-RC3</version>
+    <version>1.0.0-RC3-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
