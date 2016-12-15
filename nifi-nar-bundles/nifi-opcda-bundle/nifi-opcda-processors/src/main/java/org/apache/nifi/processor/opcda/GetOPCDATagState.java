@@ -31,7 +31,6 @@ import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.client.opcda.OPCDAConnection;
-import org.apache.nifi.client.opcda.OPCDAGroupCacheObject;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.AbstractProcessor;
@@ -42,16 +41,12 @@ import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
-import org.openscada.opc.lib.common.NotConnectedException;
 import org.openscada.opc.lib.da.Group;
 import org.openscada.opc.lib.da.Item;
 import org.openscada.opc.lib.da.ItemState;
-import org.openscada.opc.lib.da.UnknownGroupException;
 
 import java.io.InputStream;
-import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -172,10 +167,10 @@ public class GetOPCDATagState extends AbstractProcessor {
             .description("The FlowFile with transformed content has failed to this relationship")
             .build();
 
-    static final Relationship REL_RETRY = new Relationship.Builder()
-            .name("retry")
-            .description("The FlowFile with transformed content will be retried to this relationship")
-            .build();
+//    static final Relationship REL_RETRY = new Relationship.Builder()
+//            .name("retry")
+//            .description("The FlowFile with transformed content will be retried to this relationship")
+//            .build();
 
     static final List<PropertyDescriptor> DESCRIPTORS;
     static Set<Relationship> RELATIONSHIPS;
@@ -196,7 +191,7 @@ public class GetOPCDATagState extends AbstractProcessor {
         final Set<Relationship> _relationships = new HashSet<>();
         _relationships.add(REL_SUCCESS);
         _relationships.add(REL_FAILURE);
-        _relationships.add(REL_RETRY);
+        // _relationships.add(REL_RETRY);
         RELATIONSHIPS = Collections.unmodifiableSet(_relationships);
     }
 
@@ -218,6 +213,9 @@ public class GetOPCDATagState extends AbstractProcessor {
 //        if (caching) {
 //            cacheExpirationInterval = Integer.parseInt(processContext.getProperty(CACHE_REFRESH_INTERVAL).getValue());
 //        }
+        getLogger().info("esablishing connection from connection information derived from context");
+        connection = getConnection(processContext);
+        getLogger().info("connection state: " + connection.getServerState());
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
     }
 
@@ -242,9 +240,6 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     @Override
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
-        getLogger().info("esablishing connection from connection information derived from context");
-        connection = getConnection(processContext);
-        getLogger().info("connection state: " + connection.getServerState());
         getLogger().info("[" + processContext.getName() + "]: triggered");
         FlowFile flowfile = processSession.get();
         getLogger().info("flowfile obtained from session: " + flowfile.getId());
@@ -252,15 +247,9 @@ public class GetOPCDATagState extends AbstractProcessor {
         getLogger().info("processing group: " + groupName);
 
         try {
-            if (flowfile != null) {
-                if (!group.isActive()) {
-                    group = connection.addGroup(groupName);
-                } else {
-                    group = connection.findGroup(groupName);
-                }
-                Collection<String> itemIds = new ArrayList<>();
-                Collection<Item> items = new ArrayList<>();
-                StringBuilder output = new StringBuilder();
+            group = connection.addGroup(groupName);
+            Collection<String> itemIds = new ArrayList<>();
+            StringBuilder output = new StringBuilder();
 
 //                if (caching && ifCached(groupName)) {
 //                    OPCDAGroupCacheObject _cache = getCachedGroup(groupName);
@@ -315,30 +304,32 @@ public class GetOPCDATagState extends AbstractProcessor {
 //                    cache.add(new OPCDAGroupCacheObject(group, items));
 //                } else {
 
-                    getLogger().info("creating and processing group: " + groupName);
-                    processSession.read(flowfile, (InputStream in) -> {
-                        if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
-                    });
-                    for (String itemId : itemIds) {
-                        getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
-                        final Item item = group.addItem(itemId);
-                        final String _item = processItem(item);
-                        if (!_item.isEmpty()) {
-                            output.append(_item);
-                        }
-                    }
+            processSession.read(flowfile, (InputStream in) -> {
+                if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
+            });
+            for (final String itemId : itemIds) {
+                getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
+                Item item = group.addItem(itemId);
+                final String _item = processItem(item);
+                if (!_item.isEmpty()) {
+                    output.append(_item);
+                }
+            }
 //                    if (caching) {
 //                        cache.add(new OPCDAGroupCacheObject(group, items));
 //                    }
 //              }
-                processGroup(flowfile, output.toString(), processSession);
-            } else {
-                processSession.transfer(flowfile, REL_FAILURE);
-            }
+            processGroup(flowfile, output.toString(), processSession);
+            group.remove();
         } catch (final Exception e) {
             e.printStackTrace();
-        } finally {
             processSession.transfer(flowfile, REL_FAILURE);
+        } finally {
+            try {
+                group.remove();
+            } catch (JIException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -378,7 +369,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             throw new Exception("output empty");
         } else {
             getLogger().debug("writing flow file");
-            flowfile = processSession.write(flowfile, stream -> {
+            FlowFile write = processSession.write(flowfile, stream -> {
                 try {
                     stream.write(output.getBytes("UTF-8"));
                 } catch (Exception e) {
@@ -387,8 +378,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             });
             // TODO : add provenance support
             // processSession.getProvenanceReporter().receive(flowFile, "OPC");
-
-            processSession.transfer(flowfile, REL_SUCCESS);
+            processSession.transfer(write, REL_SUCCESS);
         }
     }
 

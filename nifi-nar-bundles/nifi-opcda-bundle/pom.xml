@@ -33,6 +33,7 @@
 	-->
         <module>nifi-opcda-nar</module>
         <module>nifi-opcda-processors</module>
+        <module>nifi-opcda-services</module>
     </modules>
 
 
