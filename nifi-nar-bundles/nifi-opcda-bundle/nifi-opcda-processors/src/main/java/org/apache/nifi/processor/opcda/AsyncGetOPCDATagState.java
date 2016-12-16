@@ -105,9 +105,9 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor READ_TIMEOUT_MS_ATTRIBUTE = new PropertyDescriptor.Builder()
-            .name("READ_TIMEOUT_MS_ATTRIBUTE")
-            .description("Read Timeout for Read operation from OPC DA Server")
+    static final PropertyDescriptor POLL_INTERVAL = new PropertyDescriptor.Builder()
+            .name("Tag Polling Interval")
+            .description("Interval at which tag state is polled")
             .required(false)
             .defaultValue("600000")
             .expressionLanguageSupported(false)
@@ -144,7 +144,7 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
         _descriptors.add(OPCDA_USER_NAME);
         _descriptors.add(OPCDA_PASSWORD_TEXT);
         _descriptors.add(OPCDA_CLASS_ID_NAME);
-        _descriptors.add(READ_TIMEOUT_MS_ATTRIBUTE);
+        _descriptors.add(POLL_INTERVAL);
         _descriptors.add(OUTPUT_DELIMIITER);
         // _descriptors.add(ENABLE_GROUP_CACHE);
         // _descriptors.add(CACHE_REFRESH_INTERVAL);
@@ -198,7 +198,7 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
         getLogger().info("processing group: " + groupName);
 
         try {
-            access = new SyncAccess(connection, 500);
+            access = new SyncAccess(connection, Integer.parseInt(processContext.getProperty(POLL_INTERVAL).getValue()));
             group = connection.addGroup(groupName);
             Collection<String> itemIds = new ArrayList<>();
             StringBuilder output = new StringBuilder();
