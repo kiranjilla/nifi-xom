@@ -187,6 +187,7 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
 
     @Override
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
+        AccessBase access = null;
         getLogger().info("[" + processContext.getName() + "]: triggered");
         FlowFile flowfile = processSession.get();
         if (flowfile == null) {
@@ -197,16 +198,17 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
         getLogger().info("processing group: " + groupName);
 
         try {
+            access = new SyncAccess(connection, 500);
             group = connection.addGroup(groupName);
             Collection<String> itemIds = new ArrayList<>();
             StringBuilder output = new StringBuilder();
             processSession.read(flowfile, (InputStream in) -> {
                 if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
             });
-            final AccessBase access = new SyncAccess(connection, 500);
             for (final String itemId : itemIds) {
                 getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
                 access.addItem(itemId, (item, state) -> output.append(state));
+                access.bind();
                 getLogger().debug("writing flow file");
                 flowfile = processSession.write(flowfile, stream -> {
                     try {
@@ -219,13 +221,12 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
                 // processSession.getProvenanceReporter().receive(flowFile, "OPC");
                 processSession.transfer(flowfile, REL_SUCCESS);
             }
-            // group.remove();
         } catch (final Exception e) {
             e.printStackTrace();
             processSession.transfer(flowfile, REL_FAILURE);
         } finally {
             try {
-                group.remove();
+                access.unbind();
             } catch (JIException e) {
                 e.printStackTrace();
             }
