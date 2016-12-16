@@ -286,5 +286,3 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
     }
 
 }
-
-}
