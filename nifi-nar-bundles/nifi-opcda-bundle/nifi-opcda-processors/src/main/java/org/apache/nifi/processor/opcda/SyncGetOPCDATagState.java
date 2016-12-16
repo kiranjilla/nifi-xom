@@ -24,7 +24,6 @@ package org.apache.nifi.processor.opcda;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
-import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
 import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -52,31 +51,17 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Tags({"opcda opc state tag query"})
 @CapabilityDescription("Polls OPC DA Server and create flow file")
-@InputRequirement(Requirement.INPUT_ALLOWED)
+@InputRequirement(InputRequirement.Requirement.INPUT_ALLOWED)
 @SupportsBatching
-public class GetOPCDATagState extends AbstractProcessor {
+public class SyncGetOPCDATagState extends AbstractProcessor {
 
     volatile OPCDAConnection connection;
 
     volatile Group group;
 
-//    protected volatile Collection<OPCDAGroupCacheObject> cache = new ArrayList<>();
-
-//    static boolean caching = false;
-//
-//    static Integer cacheExpirationInterval;
-
     static String DELIMITER;
 
     // PROPERTY DESCRIPTORS
-
-/*    public static final PropertyDescriptor OPCDA_GROUP_CACHE_SERVICE = new PropertyDescriptor.Builder()
-            .name("OPCDA Group Cache Service")
-            .description("Specifies the Controller Service to use for accessing OPCDA Group Caching.")
-            .required(true)
-            .identifiesControllerService(OPCDAGroupCache.class)
-            .build();*/
-
     static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor.Builder()
             .name("OPCDA_SERVER_IP_NAME")
             .description("OPC DA Server Host Name or IP Address")
@@ -139,23 +124,6 @@ public class GetOPCDATagState extends AbstractProcessor {
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
-//    static final PropertyDescriptor ENABLE_GROUP_CACHE = new PropertyDescriptor.Builder()
-//            .name("Enable Group Caching")
-//            .description("Enable Group/Item Caching")
-//            .required(true)
-//            .defaultValue("false")
-//            .expressionLanguageSupported(false)
-//            .addValidator(StandardValidators.BOOLEAN_VALIDATOR)
-//            .build();
-
-//    static final PropertyDescriptor CACHE_REFRESH_INTERVAL = new PropertyDescriptor.Builder()
-//            .name("Cache Refresh Interval In Milliseconds")
-//            .description("Time in seconds to refresh groups/items in State Table")
-//            .required(true)
-//            .defaultValue("3600").expressionLanguageSupported(false)
-//            .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
-//            .build();
-
     // RELATIONSHIPS
     static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
@@ -166,11 +134,6 @@ public class GetOPCDATagState extends AbstractProcessor {
             .name("failure")
             .description("The FlowFile with transformed content has failed to this relationship")
             .build();
-
-//    static final Relationship REL_RETRY = new Relationship.Builder()
-//            .name("retry")
-//            .description("The FlowFile with transformed content will be retried to this relationship")
-//            .build();
 
     static final List<PropertyDescriptor> DESCRIPTORS;
     static Set<Relationship> RELATIONSHIPS;
@@ -209,10 +172,6 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     @OnScheduled
     public void onScheduled(final ProcessContext processContext) {
-//      caching = Boolean.parseBoolean(processContext.getProperty(ENABLE_GROUP_CACHE).getValue());
-//        if (caching) {
-//            cacheExpirationInterval = Integer.parseInt(processContext.getProperty(CACHE_REFRESH_INTERVAL).getValue());
-//        }
         getLogger().info("esablishing connection from connection information derived from context");
         connection = getConnection(processContext);
         getLogger().info("connection state: " + connection.getServerState());
@@ -222,17 +181,6 @@ public class GetOPCDATagState extends AbstractProcessor {
     @OnStopped
     public void onStopped() {
         getLogger().info("stopping");
-//        if (caching) {
-//            for (OPCDAGroupCacheObject o : cache) {
-//                try {
-//                    getLogger().info("releasing cache");
-//                    o.getGroup().remove();
-//                    cache = null;
-//                } catch (JIException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }
         getLogger().info("releasing connection");
         connection.disconnect();
         getLogger().info("processor stopped");
@@ -242,6 +190,9 @@ public class GetOPCDATagState extends AbstractProcessor {
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
         getLogger().info("[" + processContext.getName() + "]: triggered");
         FlowFile flowfile = processSession.get();
+        if (flowfile == null) {
+            return;
+        }
         getLogger().info("flowfile obtained from session: " + flowfile.getId());
         String groupName = flowfile.getAttribute("groupName");
         getLogger().info("processing group: " + groupName);
@@ -250,59 +201,6 @@ public class GetOPCDATagState extends AbstractProcessor {
             group = connection.addGroup(groupName);
             Collection<String> itemIds = new ArrayList<>();
             StringBuilder output = new StringBuilder();
-
-//                if (caching && ifCached(groupName)) {
-//                    OPCDAGroupCacheObject _cache = getCachedGroup(groupName);
-//                    if (_cache != null && !_cache.isExpired(cacheExpirationInterval)) {
-//                        getLogger().info("utilizing cache for group: " + groupName);
-//                        for (Item i : _cache.getItems()) {
-//                            i = _cache.getItem(i);
-//                            final String item = processItem(i);
-//                            if (!item.isEmpty()) {
-//                                output.append(item);
-//                            }
-//                        }
-//                    } else {
-//                        getLogger().info("refreshing group cache: " + groupName);
-//                        assert _cache != null;
-//                        connection.removeGroup(_cache.getGroup(), true);
-//                        _cache.getGroup().remove();
-//                        Group group = new OPCDAGroupCacheObject(connection.addGroup(groupName)).getGroup();
-//                        processSession.read(flowfile, in -> {
-//                            if (itemIds.isEmpty()) {
-//                                itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
-//                            }
-//                        });
-//                        for (String itemId : itemIds) {
-//                            getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
-//                            final Item item = group.addItem(itemId);
-//                            final String _item = processItem(item);
-//                            if (!_item.isEmpty()) {
-//                                output.append(_item);
-//                            }
-//                        }
-//                        cache.add(new OPCDAGroupCacheObject(group, items));
-//                    }
-//                } else if (caching && !ifCached(groupName)) {
-//                    Group group = connection.addGroup(groupName);
-//                    getLogger().info("caching group: " + groupName);
-//                    processSession.read(flowfile, in -> {
-//                        if (itemIds.isEmpty()) {
-//                            itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
-//                        }
-//                    });
-//                    for (String itemId : itemIds) {
-//                        getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
-//                        final Item item = group.addItem(itemId);
-//                        final String _item = processItem(item);
-//                        if (!_item.isEmpty()) {
-//                            output.append(_item);
-//                            items.add(item);
-//                        }
-//                    }
-//                    getLogger().info("adding group to cache: " + groupName);
-//                    cache.add(new OPCDAGroupCacheObject(group, items));
-//                } else {
 
             processSession.read(flowfile, (InputStream in) -> {
                 if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
@@ -315,12 +213,24 @@ public class GetOPCDATagState extends AbstractProcessor {
                     output.append(_item);
                 }
             }
-//                    if (caching) {
-//                        cache.add(new OPCDAGroupCacheObject(group, items));
-//                    }
-//              }
-            processGroup(flowfile, output.toString(), processSession);
-            group.remove();
+            if (output.toString().isEmpty()) {
+                getLogger().info("releasing flow file");
+                processSession.transfer(flowfile, REL_FAILURE);
+                throw new Exception("output empty");
+            } else {
+                getLogger().debug("writing flow file");
+                flowfile = processSession.write(flowfile, stream -> {
+                    try {
+                        stream.write(output.toString().getBytes("UTF-8"));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+                // TODO : add provenance support
+                // processSession.getProvenanceReporter().receive(flowFile, "OPC");
+                processSession.transfer(flowfile, REL_SUCCESS);
+            }
+            // group.remove();
         } catch (final Exception e) {
             e.printStackTrace();
             processSession.transfer(flowfile, REL_FAILURE);
@@ -361,58 +271,6 @@ public class GetOPCDATagState extends AbstractProcessor {
         return sb.toString();
     }
 
-    private void processGroup(FlowFile flowfile, final String output, ProcessSession processSession) throws Exception {
-        getLogger().info("processing output: " + output);
-        if (output.isEmpty()) {
-            getLogger().info("releasing flow file");
-            processSession.transfer(flowfile, REL_FAILURE);
-            throw new Exception("output empty");
-        } else {
-            getLogger().debug("writing flow file");
-            FlowFile write = processSession.write(flowfile, stream -> {
-                try {
-                    stream.write(output.getBytes("UTF-8"));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
-            // TODO : add provenance support
-            // processSession.getProvenanceReporter().receive(flowFile, "OPC");
-            processSession.transfer(write, REL_SUCCESS);
-        }
-    }
-
-//    private boolean ifCached(String groupName) {
-//        for (OPCDAGroupCacheObject c : cache) {
-//            try {
-//                if (cache != null && c.getGroup().getName().equals(groupName)) {
-//                    getLogger().info("cache contains group: " + groupName);
-//                    return true;
-//                }
-//            } catch (JIException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//        getLogger().info("group not found in cache: " + groupName);
-//        return false;
-//    }
-//    private OPCDAGroupCacheObject getCachedGroup(String groupName) {
-//        getLogger().info("retrieving cache for group: " + groupName);
-//        for (OPCDAGroupCacheObject c : cache) {
-//            try {
-//                if (c.getGroup().getName().equals(groupName)) {
-//                    getLogger().info("group resides in cache: " + groupName);
-//                    return c;
-//                } else {
-//                    getLogger().info("group not found in cache: " + groupName);
-//                }
-//            } catch (JIException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//        return null;
-//    }
-
     private OPCDAConnection getConnection(final ProcessContext processContext) {
         getLogger().info("aggregating connection information from context");
         ConnectionInformation connectionInformation = new ConnectionInformation();
@@ -426,5 +284,7 @@ public class GetOPCDATagState extends AbstractProcessor {
         // TODO : add program name as acceptable attribute value
         //connectionInformation.setProgId(context.getProperty(OPCDA_PROG_ID_NAME).getValue());
     }
+
+}
 
 }
