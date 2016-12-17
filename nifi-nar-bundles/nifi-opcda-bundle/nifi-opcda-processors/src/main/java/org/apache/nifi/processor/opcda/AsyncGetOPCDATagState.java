@@ -122,7 +122,19 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
+    
+    
+    static final PropertyDescriptor READ_TIMEOUT_MS_ATTRIBUTE = new PropertyDescriptor.Builder()
+            .name("Read timeout")
+            .description("Read timeout in ms")
+            .required(false)
+            .defaultValue("30000")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
+            .build();
 
+    
+    
     // RELATIONSHIPS
     static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
