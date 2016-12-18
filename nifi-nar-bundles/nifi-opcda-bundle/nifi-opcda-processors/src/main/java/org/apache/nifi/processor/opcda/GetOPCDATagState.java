@@ -248,6 +248,7 @@ public class GetOPCDATagState extends AbstractProcessor {
 
         try {
             group = connection.addGroup(groupName);
+            getLogger().debug("Group "+groupName+" added to connection");
             Collection<String> itemIds = new ArrayList<>();
             StringBuilder output = new StringBuilder();
 
@@ -307,6 +308,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             processSession.read(flowfile, (InputStream in) -> {
                 if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
             });
+            getLogger().debug("flowfile information read to get itemIds");
             ArrayList<Item> items = new ArrayList<>();
             for (final String itemId : itemIds) {
                 getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
