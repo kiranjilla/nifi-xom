@@ -258,15 +258,19 @@ public class GetOPCDATagState extends AbstractProcessor {
 
     @Override
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
+    	long startTime = System.currentTimeMillis();
         getLogger().info("[" + processContext.getName() + "]: triggered");
         FlowFile flowfile = processSession.get();
+        if (flowfile == null) {
+        	return;
+        }
         getLogger().info("flowfile obtained from session: " + flowfile.getId());
         String groupName = flowfile.getAttribute("groupName");
         getLogger().info("processing group: " + groupName);
 
         try {
             group = connection.addGroup(groupName);
-            getLogger().debug("Group "+groupName+" added to connection");
+            getLogger().info("Group "+groupName+" added to connection");
             Collection<String> itemIds = new ArrayList<>();
             StringBuilder output = new StringBuilder();
 
@@ -326,11 +330,11 @@ public class GetOPCDATagState extends AbstractProcessor {
             processSession.read(flowfile, (InputStream in) -> {
                 if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
             });
-            getLogger().debug("flowfile information read to get itemIds");
+            getLogger().info("flowfile information read to get itemIds");
             Collection<Item> items = new ArrayList<>();
             
             Map<String, Item> addedItemMap = group.addItems(itemIds.toArray(new String[itemIds.size()]));
-            getLogger().debug("group.addItems complete");
+            getLogger().info("group.addItems complete");
             items = addedItemMap.values();
             
 //            for (final String itemId : itemIds) {
@@ -370,25 +374,28 @@ public class GetOPCDATagState extends AbstractProcessor {
             e.printStackTrace();
             processSession.transfer(flowfile, REL_FAILURE);
         } finally {
+        	
             try {
                 group.remove();
             } catch (JIException e) {
                 e.printStackTrace();
             }
         }
+        long endTime = System.currentTimeMillis();
+        getLogger().info("Total time per invocation for group ["+groupName+"] is "+ (endTime-startTime)/1000 +" seconds");
     }
 
     
     private String processItem(final Item item, final ItemState itemState) {
-        getLogger().info("processing tag: " + item.getId());
+        //getLogger().info("processing tag: " + item.getId());
         StringBuilder sb = new StringBuilder();
         try {           
             if (itemState != null) {
                 String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
-                getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
+                //getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
                 sb.append(item.getId())
                         .append(DELIMITER)
-                        .append(OPCDAItemStateValueMapper.toJavaType(itemState.getValue()))
+                        .append(value)
                         .append(DELIMITER)
                         .append(itemState.getTimestamp().getTimeInMillis())
                         .append(DELIMITER)
@@ -396,7 +403,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                         .append(DELIMITER)
                         .append(itemState.getErrorCode())
                         .append("\n");
-                getLogger().debug("item output [" + item.getId() + "] " + sb.toString());
+                //getLogger().info("item output [" + item.getId() + "] " + sb.toString());
             } else {
                 throw new Exception(item.getId() + "item state is null");
             }
@@ -417,7 +424,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                 getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
                 sb.append(item.getId())
                         .append(DELIMITER)
-                        .append(OPCDAItemStateValueMapper.toJavaType(itemState.getValue()))
+                        .append(value)
                         .append(DELIMITER)
                         .append(itemState.getTimestamp().getTimeInMillis())
                         .append(DELIMITER)
@@ -425,7 +432,7 @@ public class GetOPCDATagState extends AbstractProcessor {
                         .append(DELIMITER)
                         .append(itemState.getErrorCode())
                         .append("\n");
-                getLogger().debug("item output [" + item.getId() + "] " + sb.toString());
+                getLogger().info("item output [" + item.getId() + "] " + sb.toString());
             } else {
                 throw new Exception(item.getId() + "item state is null");
             }
@@ -442,7 +449,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             processSession.transfer(flowfile, REL_FAILURE);
             throw new Exception("output empty");
         } else {
-            getLogger().debug("writing flow file");
+            getLogger().info("writing flow file");
             FlowFile write = processSession.write(flowfile, stream -> {
                 try {
                     stream.write(output.getBytes("UTF-8"));
