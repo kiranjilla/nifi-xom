@@ -22,6 +22,19 @@
 
 package org.apache.nifi.processor.opcda;
 
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.InputRequirement.Requirement;
@@ -44,11 +57,6 @@ import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.da.Group;
 import org.openscada.opc.lib.da.Item;
 import org.openscada.opc.lib.da.ItemState;
-
-import java.io.InputStream;
-import java.util.*;
-
-import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Tags({"opcda opc state tag query"})
 @CapabilityDescription("Polls OPC DA Server and create flow file")
@@ -138,6 +146,15 @@ public class GetOPCDATagState extends AbstractProcessor {
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
+    
+    static final PropertyDescriptor ENABLE_OPC_DEVICE_CACHE = new PropertyDescriptor.Builder()
+            .name("OPC Device Cache Enabled")
+            .description("OPC Device Cache Enabled?")
+            .required(false)
+            .defaultValue("false")
+            .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.BOOLEAN_VALIDATOR)
+            .build();
 
 //    static final PropertyDescriptor ENABLE_GROUP_CACHE = new PropertyDescriptor.Builder()
 //            .name("Enable Group Caching")
@@ -184,6 +201,7 @@ public class GetOPCDATagState extends AbstractProcessor {
         _descriptors.add(OPCDA_CLASS_ID_NAME);
         _descriptors.add(READ_TIMEOUT_MS_ATTRIBUTE);
         _descriptors.add(OUTPUT_DELIMIITER);
+        _descriptors.add(ENABLE_OPC_DEVICE_CACHE);
         // _descriptors.add(ENABLE_GROUP_CACHE);
         // _descriptors.add(CACHE_REFRESH_INTERVAL);
         DESCRIPTORS = Collections.unmodifiableList(_descriptors);
@@ -309,30 +327,36 @@ public class GetOPCDATagState extends AbstractProcessor {
                 if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
             });
             getLogger().debug("flowfile information read to get itemIds");
-            ArrayList<Item> items = new ArrayList<>();
-            for (final String itemId : itemIds) {
-                getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
-                Item item = group.addItem(itemId);
-                items.add(item);
+            Collection<Item> items = new ArrayList<>();
+            
+            Map<String, Item> addedItemMap = group.addItems(itemIds.toArray(new String[itemIds.size()]));
+            getLogger().debug("group.addItems complete");
+            items = addedItemMap.values();
+            
+//            for (final String itemId : itemIds) {
+//                getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
+//                Item item = group.addItem(itemId);
+//                items.add(item);
                 
                 
 //                final String _item = processItem(item);
 //                if (!_item.isEmpty()) {
 //                    output.append(_item);
 //                }
-            }
+//            }
+            boolean opccaching = Boolean.parseBoolean(processContext.getProperty(ENABLE_OPC_DEVICE_CACHE).getValue());
             
-            Map<Item, ItemState> itemMap = group.read(Boolean.TRUE, items.toArray(new Item[items.size()]));
+            Map<Item, ItemState> retrievedItemMap = group.read(opccaching, items.toArray(new Item[items.size()]));
             
 
 //                    if (caching) {
 //                        cache.add(new OPCDAGroupCacheObject(group, items));
 //                    }
 //              }
-            Iterator<Item> iter = itemMap.keySet().iterator();
+            Iterator<Item> iter = retrievedItemMap.keySet().iterator();
             while(iter.hasNext()) {
             	Item nextItem = iter.next();
-            	ItemState itemState = itemMap.get(nextItem);
+            	ItemState itemState = retrievedItemMap.get(nextItem);
             	final String _item = processItem(nextItem, itemState);
             	if(!_item.isEmpty()) {
             		output.append(_item);
