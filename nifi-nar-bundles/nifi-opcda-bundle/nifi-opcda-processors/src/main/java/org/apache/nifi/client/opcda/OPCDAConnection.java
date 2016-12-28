@@ -20,6 +20,7 @@
 package org.apache.nifi.client.opcda;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.da.*;
 
@@ -29,6 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Logger;
 
 @Data
+@EqualsAndHashCode
 public class OPCDAConnection extends Server {
 
     private Logger log = Logger.getLogger(getClass().getName());
@@ -38,6 +40,8 @@ public class OPCDAConnection extends Server {
     static volatile AccessBase accessBase;
 
     private ConnectionInformation connectionInformation;
+
+    private String status;
 
     public OPCDAConnection(final ConnectionInformation connectionInformation,
                            final ScheduledExecutorService executorService) {
