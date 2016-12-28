@@ -21,8 +21,10 @@ package org.apache.nifi.client.opcda;
 
 import lombok.Data;
 import org.openscada.opc.lib.common.ConnectionInformation;
-import org.openscada.opc.lib.da.Server;
+import org.openscada.opc.lib.da.*;
 
+import java.sql.Connection;
+import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Logger;
 
@@ -33,11 +35,14 @@ public class OPCDAConnection extends Server {
 
     static volatile Server server;
 
-    private String status;
+    static volatile AccessBase accessBase;
+
+    private ConnectionInformation connectionInformation;
 
     public OPCDAConnection(final ConnectionInformation connectionInformation,
-                           ScheduledExecutorService executorService) {
+                           final ScheduledExecutorService executorService) {
         super(connectionInformation, executorService);
+        this.connectionInformation = connectionInformation;
         log.info("initiating OPCDA connection");
         log.info("host: " + connectionInformation.getHost());
         log.info("workgroup/domain: " + connectionInformation.getClsid());
@@ -48,5 +53,4 @@ public class OPCDAConnection extends Server {
             e.printStackTrace();
         }
     }
-
 }

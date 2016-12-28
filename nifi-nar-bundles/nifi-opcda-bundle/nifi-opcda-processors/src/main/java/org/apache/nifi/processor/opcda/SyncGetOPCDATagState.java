@@ -22,7 +22,6 @@
 
 package org.apache.nifi.processor.opcda;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
@@ -31,21 +30,21 @@ import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.domain.opcda.OPCDATag;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.processor.AbstractProcessor;
-import org.apache.nifi.processor.ProcessContext;
-import org.apache.nifi.processor.ProcessSession;
-import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.processor.*;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
 import org.jinterop.dcom.common.JIException;
 import org.openscada.opc.lib.common.ConnectionInformation;
-import org.openscada.opc.lib.da.Group;
-import org.openscada.opc.lib.da.Item;
-import org.openscada.opc.lib.da.ItemState;
+import org.openscada.opc.lib.common.NotConnectedException;
+import org.openscada.opc.lib.da.*;
 
-import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -55,15 +54,15 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 @SupportsBatching
 public class SyncGetOPCDATagState extends AbstractProcessor {
 
-    volatile OPCDAConnection connection;
+    private volatile OPCDAConnection connection;
 
-    volatile Group group;
+    private static String DELIMITER;
 
-    static String DELIMITER;
+    private volatile BlockingQueue<OPCDATag> stateQueue = new LinkedBlockingQueue<>(5000);
 
     // PROPERTY DESCRIPTORS
-    static final PropertyDescriptor OPCDA_SERVER_IP_NAME = new PropertyDescriptor.Builder()
-            .name("OPCDA_SERVER_IP_NAME")
+    static final PropertyDescriptor SERVER = new PropertyDescriptor.Builder()
+            .name("Host")
             .description("OPC DA Server Host Name or IP Address")
             .required(true)
             .expressionLanguageSupported(false)
@@ -71,8 +70,8 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
             .addValidator(StandardValidators.URI_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor OPCDA_WORKGROUP_NAME = new PropertyDescriptor.Builder()
-            .name("OPCDA_WORKGROUP_NAME")
+    static final PropertyDescriptor WORKGROUP = new PropertyDescriptor.Builder()
+            .name("Workgroup")
             .description("OPC DA Server Workgroup or Domain Name")
             .required(true)
             .expressionLanguageSupported(false)
@@ -80,8 +79,8 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
             .addValidator(StandardValidators.URI_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor OPCDA_USER_NAME = new PropertyDescriptor.Builder()
-            .name("OPCDA_USER_NAME")
+    static final PropertyDescriptor USERNAME = new PropertyDescriptor.Builder()
+            .name("Username")
             .description("OPC DA User Name")
             .required(true)
             .expressionLanguageSupported(false)
@@ -89,26 +88,26 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
             .addValidator(StandardValidators.URI_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor OPCDA_PASSWORD_TEXT = new PropertyDescriptor.Builder()
-            .name("OPCDA_PASSWORD_TEXT")
-            .description("OPC DA Password Text")
+    static final PropertyDescriptor PASSWORD = new PropertyDescriptor.Builder()
+            .name("Password")
+            .description("OPC DA Password")
             .required(true).sensitive(true)
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .addValidator(StandardValidators.URI_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor OPCDA_CLASS_ID_NAME = new PropertyDescriptor.Builder()
-            .name("OPCDA_CLASS_ID_NAME")
+    static final PropertyDescriptor CLASS_ID = new PropertyDescriptor.Builder()
+            .name("Class ID")
             .description("OPC DA Class ID")
             .required(true)
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor READ_TIMEOUT_MS_ATTRIBUTE = new PropertyDescriptor.Builder()
-            .name("READ_TIMEOUT_MS_ATTRIBUTE")
-            .description("Read Timeout for Read operation from OPC DA Server")
+    static final PropertyDescriptor POLL_INTERVAL = new PropertyDescriptor.Builder()
+            .name("Tag State Poll Interval")
+            .description("Interval (in milliseconds) to poll tag state")
             .required(false)
             .defaultValue("600000")
             .expressionLanguageSupported(false)
@@ -135,47 +134,62 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
             .description("The FlowFile with transformed content has failed to this relationship")
             .build();
 
-    static final List<PropertyDescriptor> DESCRIPTORS;
-    static Set<Relationship> RELATIONSHIPS;
+    private List<PropertyDescriptor> descriptors;
+    private Set<Relationship> relationships;
 
-    static {
+    @Override
+    protected void init(final ProcessorInitializationContext context) {
         final List<PropertyDescriptor> _descriptors = new ArrayList<>();
-        _descriptors.add(OPCDA_SERVER_IP_NAME);
-        _descriptors.add(OPCDA_WORKGROUP_NAME);
-        _descriptors.add(OPCDA_USER_NAME);
-        _descriptors.add(OPCDA_PASSWORD_TEXT);
-        _descriptors.add(OPCDA_CLASS_ID_NAME);
-        _descriptors.add(READ_TIMEOUT_MS_ATTRIBUTE);
+        _descriptors.add(SERVER);
+        _descriptors.add(WORKGROUP);
+        _descriptors.add(USERNAME);
+        _descriptors.add(PASSWORD);
+        _descriptors.add(CLASS_ID);
+        _descriptors.add(POLL_INTERVAL);
         _descriptors.add(OUTPUT_DELIMIITER);
         // _descriptors.add(ENABLE_GROUP_CACHE);
         // _descriptors.add(CACHE_REFRESH_INTERVAL);
-        DESCRIPTORS = Collections.unmodifiableList(_descriptors);
+        this.descriptors = Collections.unmodifiableList(_descriptors);
 
         final Set<Relationship> _relationships = new HashSet<>();
         _relationships.add(REL_SUCCESS);
         _relationships.add(REL_FAILURE);
         // _relationships.add(REL_RETRY);
-        RELATIONSHIPS = Collections.unmodifiableSet(_relationships);
+        this.relationships = Collections.unmodifiableSet(_relationships);
     }
 
     @Override
     public Set<Relationship> getRelationships() {
-        getLogger().debug("relationships: " + Arrays.toString(RELATIONSHIPS.toArray()));
-        return RELATIONSHIPS;
+        getLogger().debug("relationships: " + Arrays.toString(relationships.toArray()));
+        return this.relationships;
     }
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        getLogger().debug("supported property descriptors: " + Arrays.toString(DESCRIPTORS.toArray()));
-        return DESCRIPTORS;
+        getLogger().debug("supported property descriptors: " + Arrays.toString(descriptors.toArray()));
+        return this.descriptors;
+    }
+
+    @Override
+    public void onPropertyModified(final PropertyDescriptor descriptor, final String oldValue, final String newValue) {
+        // if any property is modified, the results are no longer valid. Destroy all messages in the queue.
+        stateQueue.clear();
     }
 
     @OnScheduled
-    public void onScheduled(final ProcessContext processContext) {
+    public void onScheduled(final ProcessContext processContext, final ProcessSession processSession) throws DuplicateGroupException, NotConnectedException, JIException, UnknownHostException, AddFailedException {
         getLogger().info("esablishing connection from connection information derived from context");
-        connection = getConnection(processContext);
-        getLogger().info("connection state: " + connection.getServerState());
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
+        connection = getConnection(processContext);
+        AccessBase access = new SyncAccess(connection, Integer.parseInt(processContext.getProperty(POLL_INTERVAL).getValue()));
+        Collection<String> tags = new ArrayList<>();
+        for (final String tag: tags) {
+            getLogger().info("adding tag to access base: " + tag);
+            access.addItem(tag, (item, itemState) -> {
+                getLogger().info("tag state change: " + item.getId());
+                stateQueue.add(new OPCDATag(item, itemState));
+            });
+        }
     }
 
     @OnStopped
@@ -189,69 +203,37 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
     @Override
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
         getLogger().info("[" + processContext.getName() + "]: triggered");
-        FlowFile flowfile = processSession.get();
-        if (flowfile == null) {
+        final OPCDATag tag = stateQueue.poll();
+        if (tag == null) {
+            getLogger().info("null tag: yielding context");
+            processContext.yield();
             return;
         }
-        getLogger().info("flowfile obtained from session: " + flowfile.getId());
-        String groupName = flowfile.getAttribute("groupName");
-        getLogger().info("processing group: " + groupName);
 
-        try {
-            group = connection.addGroup(groupName);
-            Collection<String> itemIds = new ArrayList<>();
-            StringBuilder output = new StringBuilder();
-
-            processSession.read(flowfile, (InputStream in) -> {
-                if (itemIds.isEmpty()) itemIds.addAll(IOUtils.readLines(in, "UTF-8"));
-            });
-            for (final String itemId : itemIds) {
-                getLogger().info("[" + groupName + "] adding tag to group: " + itemId);
-                Item item = group.addItem(itemId);
-                final String _item = processItem(item);
-                if (!_item.isEmpty()) {
-                    output.append(_item);
-                }
-            }
-            if (output.toString().isEmpty()) {
-                getLogger().info("releasing flow file");
-                processSession.transfer(flowfile, REL_FAILURE);
-                throw new Exception("output empty");
-            } else {
-                getLogger().debug("writing flow file");
-                flowfile = processSession.write(flowfile, stream -> {
-                    try {
-                        stream.write(output.toString().getBytes("UTF-8"));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                });
-                // TODO : add provenance support
-                // processSession.getProvenanceReporter().receive(flowFile, "OPC");
-                processSession.transfer(flowfile, REL_SUCCESS);
-            }
-            // group.remove();
-        } catch (final Exception e) {
-            e.printStackTrace();
-            processSession.transfer(flowfile, REL_FAILURE);
-        } finally {
+        FlowFile flowfile = processSession.create();
+        getLogger().info("flowfile created: " + flowfile.getId());
+        final String output = processTag(tag);
+        getLogger().debug("flowfile output: " + output);
+        flowfile = processSession.write(flowfile, (OutputStream stream) -> {
             try {
-                group.remove();
-            } catch (JIException e) {
+                stream.write(output.getBytes("UTF-8"));
+                stateQueue.remove(tag);
+            } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
+        });
+        processSession.transfer(flowfile, REL_SUCCESS);
+        processSession.getProvenanceReporter().receive(flowfile, connection.getConnectionInformation().getHost());
     }
 
-    private String processItem(final Item item) {
-        getLogger().info("processing tag: " + item.getId());
+    private String processTag(final OPCDATag tag) {
+        final String tagId = tag.getItem().getId();
+        getLogger().info("processing tag: " + tagId);
         StringBuilder sb = new StringBuilder();
         try {
-            ItemState itemState = item.read(false);
+            final ItemState itemState = tag.getItem().read(false);
             if (itemState != null) {
-                String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
-                getLogger().info("[" + item.getGroup().getName() + "] " + item.getId() + ": " + value);
-                sb.append(item.getId())
+                sb.append(tagId)
                         .append(DELIMITER)
                         .append(OPCDAItemStateValueMapper.toJavaType(itemState.getValue()))
                         .append(DELIMITER)
@@ -261,9 +243,9 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
                         .append(DELIMITER)
                         .append(itemState.getErrorCode())
                         .append("\n");
-                getLogger().debug("item output [" + item.getId() + "] " + sb.toString());
+                getLogger().debug("item output [" + tagId + "] " + sb.toString());
             } else {
-                throw new Exception(item.getId() + "item state is null");
+                throw new Exception(tagId + "item state is null");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -274,11 +256,11 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
     private OPCDAConnection getConnection(final ProcessContext processContext) {
         getLogger().info("aggregating connection information from context");
         ConnectionInformation connectionInformation = new ConnectionInformation();
-        connectionInformation.setHost(processContext.getProperty(OPCDA_SERVER_IP_NAME).getValue());
-        connectionInformation.setDomain(processContext.getProperty(OPCDA_WORKGROUP_NAME).getValue());
-        connectionInformation.setUser(processContext.getProperty(OPCDA_USER_NAME).getValue());
-        connectionInformation.setPassword(processContext.getProperty(OPCDA_PASSWORD_TEXT).getValue());
-        connectionInformation.setClsid(processContext.getProperty(OPCDA_CLASS_ID_NAME).getValue());
+        connectionInformation.setHost(processContext.getProperty(SERVER).getValue());
+        connectionInformation.setDomain(processContext.getProperty(WORKGROUP).getValue());
+        connectionInformation.setUser(processContext.getProperty(USERNAME).getValue());
+        connectionInformation.setPassword(processContext.getProperty(PASSWORD).getValue());
+        connectionInformation.setClsid(processContext.getProperty(CLASS_ID).getValue());
         return new OPCDAConnection(connectionInformation, newSingleThreadScheduledExecutor());
 
         // TODO : add program name as acceptable attribute value
