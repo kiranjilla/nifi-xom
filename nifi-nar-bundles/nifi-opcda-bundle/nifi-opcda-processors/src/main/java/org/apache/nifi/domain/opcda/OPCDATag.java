@@ -15,7 +15,7 @@ public class OPCDATag {
 
     private ItemState itemState;
 
-    public OPCDATag(Item item, ItemState itemState) {
+    public OPCDATag(final Item item, final ItemState itemState) {
         this.item = item;
         this.itemState = itemState;
     }
