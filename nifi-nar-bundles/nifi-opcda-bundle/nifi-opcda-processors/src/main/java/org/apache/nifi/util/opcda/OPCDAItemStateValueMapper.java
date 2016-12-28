@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 
 public class OPCDAItemStateValueMapper {
 
-    private static Logger log = Logger.getLogger("OPCDAItemStateValueMapper");
+    //private static Logger log = Logger.getLogger("OPCDAItemStateValueMapper");
 
     public static Object toJavaType(JIVariant variant) throws JIException {
         int type = variant.getType();
@@ -41,7 +41,7 @@ public class OPCDAItemStateValueMapper {
             switch (type) {
                 case JIVariant.VT_I1:
                     Byte b = (byte) variant.getObjectAsChar();
-                    log.info("returning char: " + b.toString());
+                    //log.info("returning char: " + b.toString());
                     return b;
                 case JIVariant.VT_I2:
                     return variant.getObjectAsShort();

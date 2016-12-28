@@ -23,52 +23,119 @@
 	<packaging>jar</packaging>
 
 	<properties>
+		<dependencies.dependency.version>1.0.0</dependencies.dependency.version>
 		<dcom.version>1.2.0-SNAPSHOT</dcom.version>
 		<!-- <utgard.version>1.1.0.v20130529</utgard.version> -->
 		<utgard.version>1.3.0-SNAPSHOT</utgard.version>
 		<jinterop.core.version>2.1.8-SNAPSHOT</jinterop.core.version>
 	</properties>
 
+
+
 	<dependencies>
+	
+	
+		<!-- 
 		<dependency>
-			<groupId>org.apache.nifi</groupId>
-			<artifactId>nifi-api</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.nifi</groupId>
-			<artifactId>nifi-processor-utils</artifactId>
-		</dependency>
-        <dependency>
-			<groupId>org.apache.nifi</groupId>
-			<artifactId>nifi-mock</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.11</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>ch.qos.logback</groupId>
-			<artifactId>logback-core</artifactId>
-			<version>1.1.3</version>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>jul-to-slf4j</artifactId>
-			<version>1.6.4</version>
-		</dependency>
-		<dependency>
-			<groupId>jcifs</groupId>
-			<artifactId>jcifs</artifactId>
-			<version>1.3.17</version>
-		</dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-distributed-cache-client-service</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-distributed-cache-client-service-api</artifactId>
+                <version>1.0.0</version>
+      
+            </dependency>
+            
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-ssl-context-service-api</artifactId>
+              
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-load-distribution-service-api</artifactId>
+            </dependency>
+             <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-http-context-map-api</artifactId>
+                <version>1.0.0</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-distributed-cache-protocol</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-distributed-cache-server</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-ssl-context-service</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+			<dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-http-context-map</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-volatile-provenance-repository</artifactId>
+                <version>1.0.0</version>
+                <scope>test</scope>
+            </dependency>
+            
+ 
+		 -->
+		 <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-processor-utils</artifactId>
+        </dependency>
+        
+	
+		 <dependency>
+            	<groupId>org.apache.nifi</groupId>
+            	<artifactId>nifi-mock</artifactId>
+            	
+            	<scope>test</scope>
+            </dependency>
+            
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-api</artifactId>
+               
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-framework-api</artifactId>
+             
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-runtime</artifactId>
+               
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-nar-utils</artifactId>
+               
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-properties</artifactId>
+               
+                <scope>provided</scope>
+            </dependency>
 		<dependency>
 			<groupId>org.openscada.jinterop</groupId>
 			<artifactId>org.openscada.jinterop.core</artifactId>
@@ -89,17 +156,27 @@
 			<artifactId>org.openscada.opc.lib</artifactId>
 			<version>${utgard.version}</version>
 		</dependency>
+		
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
+			<version>2.9.7</version>
 		</dependency>
+		
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<version>1.16.10</version>
 			<scope>provided</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>org.samba.jcifs</groupId>
+			<artifactId>jcifs</artifactId>
+			<version>1.3.17</version>
+		</dependency>
 	</dependencies>
+
 	<repositories>
 		<repository>
 			<id>utgard</id>
@@ -116,5 +193,7 @@
 			<name>oss-sonatype</name>
 			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
 		</repository>
+		
+		
 	</repositories>
 </project>
