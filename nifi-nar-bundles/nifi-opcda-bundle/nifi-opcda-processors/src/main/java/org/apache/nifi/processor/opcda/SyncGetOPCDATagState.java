@@ -58,7 +58,7 @@ public class SyncGetOPCDATagState extends AbstractProcessor {
 
     private static String DELIMITER;
 
-    private volatile BlockingQueue<OPCDATag> stateQueue = new LinkedBlockingQueue<>(5000);
+    private volatile BlockingQueue<OPCDATag> stateQueue = new LinkedBlockingQueue<>();
 
     // PROPERTY DESCRIPTORS
     static final PropertyDescriptor SERVER = new PropertyDescriptor.Builder()
