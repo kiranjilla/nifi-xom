@@ -267,12 +267,17 @@ public class GetOPCDATagState extends AbstractProcessor {
         getLogger().info("flowfile obtained from session: " + flowfile.getId());
         String groupName = flowfile.getAttribute("groupName");
         getLogger().info("processing group: " + groupName);
+        
+        // If scheduler is set to 0, there is a chance of connection getting to null. 
+        if(connection == null) {
+        	connection = getConnection(processContext);
+        }
 
         try {
             group = connection.addGroup(groupName);
             getLogger().info("Group "+groupName+" added to connection");
             Collection<String> itemIds = new ArrayList<>();
-            StringBuilder output = new StringBuilder();
+            StringBuffer output = new StringBuffer();
 
 //                if (caching && ifCached(groupName)) {
 //                    OPCDAGroupCacheObject _cache = getCachedGroup(groupName);
@@ -368,7 +373,7 @@ public class GetOPCDATagState extends AbstractProcessor {
             	
             }
             
-            processGroup(flowfile, output.toString(), processSession);
+            flowfile = processGroup(flowfile, output.toString(), processSession);
             group.remove();
         } catch (final Exception e) {
             e.printStackTrace();
@@ -388,7 +393,7 @@ public class GetOPCDATagState extends AbstractProcessor {
     
     private String processItem(final Item item, final ItemState itemState) {
         //getLogger().info("processing tag: " + item.getId());
-        StringBuilder sb = new StringBuilder();
+        StringBuffer sb = new StringBuffer();
         try {           
             if (itemState != null) {
                 String value = OPCDAItemStateValueMapper.toJavaType(itemState.getValue()).toString();
@@ -416,7 +421,7 @@ public class GetOPCDATagState extends AbstractProcessor {
     
     private String processItem(final Item item) {
         getLogger().info("processing tag: " + item.getId());
-        StringBuilder sb = new StringBuilder();
+        StringBuffer sb = new StringBuffer();
         try {
             ItemState itemState = item.read(false);
             if (itemState != null) {
@@ -442,15 +447,16 @@ public class GetOPCDATagState extends AbstractProcessor {
         return sb.toString();
     }
 
-    private void processGroup(FlowFile flowfile, final String output, ProcessSession processSession) throws Exception {
-        getLogger().info("processing output: " + output);
+    private  FlowFile processGroup(FlowFile flowfile, final String output, ProcessSession processSession) throws Exception {
+        FlowFile flowfileOut = flowfile; 
+    	getLogger().info("processing output: " + output);
         if (output.isEmpty()) {
             getLogger().info("releasing flow file");
-            processSession.transfer(flowfile, REL_FAILURE);
-            throw new Exception("output empty");
+            processSession.transfer(flowfileOut, REL_FAILURE);
+            //throw new Exception("output empty");
         } else {
             getLogger().info("writing flow file");
-            FlowFile write = processSession.write(flowfile, stream -> {
+            flowfileOut = processSession.write(flowfile, stream -> {
                 try {
                     stream.write(output.getBytes("UTF-8"));
                 } catch (Exception e) {
@@ -459,8 +465,9 @@ public class GetOPCDATagState extends AbstractProcessor {
             });
             // TODO : add provenance support
             // processSession.getProvenanceReporter().receive(flowFile, "OPC");
-            processSession.transfer(write, REL_SUCCESS);
+            processSession.transfer(flowfileOut, REL_SUCCESS);
         }
+            return flowfileOut;
     }
 
 //    private boolean ifCached(String groupName) {

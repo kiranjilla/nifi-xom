@@ -16,5 +16,3 @@ org.apache.nifi.processor.opcda.GetOPCDATagList
 org.apache.nifi.processor.opcda.GetOPCDATagState
 org.apache.nifi.processor.opcda.AsyncGetOPCDATagState
 org.apache.nifi.processor.opcda.AsyncGetOPCDATagState
-
-
