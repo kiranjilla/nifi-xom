@@ -88,6 +88,7 @@ public class GetOPCDATagList extends AbstractProcessor {
             .sensitive(true)
             .expressionLanguageSupported(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
             .build();
 
     static final PropertyDescriptor OPCDA_CLASS_ID_NAME = new PropertyDescriptor

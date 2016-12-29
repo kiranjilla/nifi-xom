@@ -350,7 +350,7 @@ public class GetOPCDATagState extends AbstractProcessor {
 //            }
             boolean opccaching = Boolean.parseBoolean(processContext.getProperty(ENABLE_OPC_DEVICE_CACHE).getValue());
             
-            Map<Item, ItemState> retrievedItemMap = group.read(!opccaching, items.toArray(new Item[items.size()]));
+            Map<Item, ItemState> retrievedItemMap = group.read(opccaching, items.toArray(new Item[items.size()]));
             
 
 //                    if (caching) {
@@ -445,10 +445,9 @@ public class GetOPCDATagState extends AbstractProcessor {
     private void processGroup(FlowFile flowfile, final String output, ProcessSession processSession) throws Exception {
         getLogger().info("processing output: " + output);
         if (output.isEmpty()) {
-        	 
             getLogger().info("releasing flow file");
             processSession.transfer(flowfile, REL_FAILURE);
-            //throw new Exception("output empty");
+            throw new Exception("output empty");
         } else {
             getLogger().info("writing flow file");
             FlowFile write = processSession.write(flowfile, stream -> {
