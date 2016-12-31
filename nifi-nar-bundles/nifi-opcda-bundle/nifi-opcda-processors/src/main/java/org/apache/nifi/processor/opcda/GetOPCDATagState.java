@@ -24,7 +24,10 @@ package org.apache.nifi.processor.opcda;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
+import java.io.BufferedOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,10 +49,13 @@ import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.client.opcda.OPCDAConnection;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
+import org.apache.nifi.flowfile.attributes.CoreAttributes;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.processor.exception.ProcessException;
+import org.apache.nifi.processor.io.StreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
 import org.jinterop.dcom.common.JIException;
@@ -64,9 +70,7 @@ import org.openscada.opc.lib.da.ItemState;
 @SupportsBatching
 public class GetOPCDATagState extends AbstractProcessor {
 
-    volatile OPCDAConnection connection;
 
-    volatile Group group;
 
 //    protected volatile Collection<OPCDAGroupCacheObject> cache = new ArrayList<>();
 
@@ -232,8 +236,8 @@ public class GetOPCDATagState extends AbstractProcessor {
 //            cacheExpirationInterval = Integer.parseInt(processContext.getProperty(CACHE_REFRESH_INTERVAL).getValue());
 //        }
         getLogger().info("esablishing connection from connection information derived from context");
-        connection = getConnection(processContext);
-        getLogger().info("connection state: " + connection.getServerState());
+        //connection = getConnection(processContext);
+        //getLogger().info("connection state: " + connection.getServerState());
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
     }
 
@@ -252,13 +256,14 @@ public class GetOPCDATagState extends AbstractProcessor {
 //            }
 //        }
         getLogger().info("releasing connection");
-        connection.disconnect();
+        //connection.disconnect();
         getLogger().info("processor stopped");
     }
 
-    @Override
-    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
+    public void onTrigger1(final ProcessContext processContext, final ProcessSession processSession) {
     	long startTime = System.currentTimeMillis();
+    	OPCDAConnection connection = null;
+    	Group group = null;
         getLogger().info("[" + processContext.getName() + "]: triggered");
         FlowFile flowfile = processSession.get();
         if (flowfile == null) {
@@ -272,11 +277,12 @@ public class GetOPCDATagState extends AbstractProcessor {
         if(connection == null) {
         	connection = getConnection(processContext);
         }
+        getLogger().info("New Connection obtained");
 
         try {
             group = connection.addGroup(groupName);
             getLogger().info("Group "+groupName+" added to connection");
-            Collection<String> itemIds = new ArrayList<>();
+            Collection<String> itemIds = Collections.synchronizedList(new ArrayList<String>());
             StringBuffer output = new StringBuffer();
 
 //                if (caching && ifCached(groupName)) {
@@ -379,15 +385,85 @@ public class GetOPCDATagState extends AbstractProcessor {
             e.printStackTrace();
             processSession.transfer(flowfile, REL_FAILURE);
         } finally {
-        	
-            try {
-                group.remove();
-            } catch (JIException e) {
-                e.printStackTrace();
-            }
+                connection.disconnect();
         }
         long endTime = System.currentTimeMillis();
         getLogger().info("Total time per invocation for group ["+groupName+"] is "+ (endTime-startTime)/1000 +" seconds");
+    }
+
+   @Override 
+    public void onTrigger(ProcessContext processContext, ProcessSession processSession) throws ProcessException {
+	   	getLogger().info("onTrigger invoked");
+    	long startTime = System.currentTimeMillis();
+        FlowFile flowFile = processSession.get();
+        if (flowFile == null) {
+            return;
+        }
+        final boolean opccaching = Boolean.parseBoolean(processContext.getProperty(ENABLE_OPC_DEVICE_CACHE).getValue());
+       	final String groupName = flowFile.getAttribute("groupName");
+        
+        
+        try {
+            flowFile = processSession.write(flowFile, new StreamCallback() {
+                @Override
+                public void process(final InputStream rawIn, final OutputStream rawOut) throws IOException {
+
+                	OPCDAConnection connection = null;
+                	try{
+                		if(connection == null) {
+                			getLogger().info("Connection object is null. getConnection method called");
+                			connection = getConnection(processContext);
+                		}
+                	Group group = null;
+                	group = connection.addGroup(groupName);
+                    getLogger().info("Group "+groupName+" added to connection");
+                    Collection<String> itemIds = Collections.synchronizedList(new ArrayList<String>());
+                    StringBuffer output = new StringBuffer();
+                    
+                    final OutputStream out = new BufferedOutputStream(rawOut);
+                    itemIds.addAll(IOUtils.readLines(rawIn,"UTF-8"));
+                    
+                    Map<String, Item> addedItemMap = group.addItems(itemIds.toArray(new String[itemIds.size()]));
+                    Collection<Item> items = Collections.synchronizedList(new ArrayList<Item>());
+                    
+                    items = addedItemMap.values();
+                    
+                    
+                    Map<Item, ItemState> retrievedItemMap = group.read(opccaching, items.toArray(new Item[items.size()]));
+            
+                    Iterator<Item> iter = retrievedItemMap.keySet().iterator();
+                    while(iter.hasNext()) {
+                    	Item nextItem = iter.next();
+                    	ItemState itemState = retrievedItemMap.get(nextItem);
+                    	final String _item = processItem(nextItem, itemState);
+                    	if(!_item.isEmpty()) {
+                    		output.append(_item);
+                    	}
+                    	
+                    }
+                    
+                    out.write(output.toString().getBytes());
+                    
+                    group.remove();
+                	}
+                	catch(Exception e) {
+                		
+                	}
+                	finally {
+                		connection.disconnect();
+                	}
+                }
+            });
+        } catch (Exception pe) {
+            getLogger().error("Test Error", new Object[]{flowFile, pe});
+            processSession.transfer(flowFile, REL_FAILURE);
+            return;
+        }
+
+        flowFile = processSession.putAttribute(flowFile, CoreAttributes.MIME_TYPE.key(), "application/text");
+        processSession.transfer(flowFile, REL_SUCCESS);
+        long endTime = System.currentTimeMillis();
+        getLogger().info("Total time per invocation is "+ (endTime-startTime)/1000 +" seconds");
     }
 
     
@@ -448,6 +524,30 @@ public class GetOPCDATagState extends AbstractProcessor {
     }
 
     private  FlowFile processGroup(FlowFile flowfile, final String output, ProcessSession processSession) throws Exception {
+        FlowFile flowfileOut = flowfile; 
+    	getLogger().info("processing output: " + output);
+        if (output.isEmpty()) {
+            getLogger().info("releasing flow file");
+            processSession.transfer(flowfileOut, REL_FAILURE);
+            //throw new Exception("output empty");
+        } else {
+            getLogger().info("writing flow file");
+            flowfileOut = processSession.write(flowfile, stream -> {
+                try {
+                    stream.write(output.getBytes("UTF-8"));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            // TODO : add provenance support
+            // processSession.getProvenanceReporter().receive(flowFile, "OPC");
+            processSession.transfer(flowfileOut, REL_SUCCESS);
+        }
+            return flowfileOut;
+    }
+    
+    
+    private  FlowFile processGroup1(FlowFile flowfile, final String output, ProcessSession processSession) throws Exception {
         FlowFile flowfileOut = flowfile; 
     	getLogger().info("processing output: " + output);
         if (output.isEmpty()) {
