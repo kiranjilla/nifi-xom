@@ -22,6 +22,7 @@
 
 package org.apache.nifi.processor.opcda;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
@@ -40,6 +41,7 @@ import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.common.NotConnectedException;
 import org.openscada.opc.lib.da.*;
 
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
 import java.util.*;
@@ -59,6 +61,8 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
     private static String DELIMITER;
 
     private volatile BlockingQueue<OPCDATag> stateQueue = new LinkedBlockingQueue<>();
+
+    private AccessBase access;
 
     // PROPERTY DESCRIPTORS
     static final PropertyDescriptor SERVER = new PropertyDescriptor.Builder()
@@ -179,10 +183,14 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
     @OnScheduled
     public void onScheduled(final ProcessContext processContext, final ProcessSession processSession) throws DuplicateGroupException, NotConnectedException, JIException, UnknownHostException, AddFailedException {
         getLogger().info("esablishing connection from connection information derived from context");
+        FlowFile flowfile = processSession.create();
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
         connection = getConnection(processContext);
-        AccessBase access = new SyncAccess(connection, Integer.parseInt(processContext.getProperty(POLL_INTERVAL).getValue()));
+        access = new Async20Access(connection, Integer.parseInt(processContext.getProperty(POLL_INTERVAL).getValue()), false);
         Collection<String> tags = new ArrayList<>();
+        processSession.read(flowfile, (InputStream in) -> {
+            if (tags.isEmpty()) tags.addAll(IOUtils.readLines(in, "UTF-8"));
+        });
         for (final String tag: tags) {
             getLogger().info("adding tag to access base: " + tag);
             access.addItem(tag, (item, itemState) -> {
@@ -190,18 +198,20 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
                 stateQueue.add(new OPCDATag(item, itemState));
             });
         }
+        access.bind();
     }
 
     @OnStopped
-    public void onStopped() {
+    public void onStopped() throws JIException {
         getLogger().info("stopping");
         getLogger().info("releasing connection");
         connection.disconnect();
+        getLogger().info("releasing access");
+        access.unbind();
         getLogger().info("processor stopped");
     }
 
-    @Override
-    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
+    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession, FlowFile flowfile) {
         getLogger().info("[" + processContext.getName() + "]: triggered");
         final OPCDATag tag = stateQueue.poll();
         if (tag == null) {
@@ -210,8 +220,6 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
             return;
         }
 
-        FlowFile flowfile = processSession.create();
-        getLogger().info("flowfile created: " + flowfile.getId());
         final String output = processTag(tag);
         getLogger().debug("flowfile output: " + output);
         flowfile = processSession.write(flowfile, (OutputStream stream) -> {

@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-public class GetOPCDATagStateTest {
+public class AsyncGetOPCDATagStateTest {
 
     private Properties props = new Properties();
 
@@ -56,16 +56,14 @@ public class GetOPCDATagStateTest {
     public void testQueryOPCDATagState() throws IOException {
 
         List<MockFlowFile> flowFiles;
-        final TestRunner runner = TestRunners.newTestRunner(new GetOPCDATagState());
+        final TestRunner runner = TestRunners.newTestRunner(new AsyncGetOPCDATagState());
 
-        runner.setProperty(GetOPCDATagList.OPCDA_SERVER_IP_NAME, (String) props.get("opcda.server.ip.name"));
-        runner.setProperty(GetOPCDATagList.OPCDA_WORKGROUP_NAME, (String) props.get("opcda.workgroup.name"));
-        runner.setProperty(GetOPCDATagList.OPCDA_USER_NAME, (String) props.get("opcda.user.name"));
-        runner.setProperty(GetOPCDATagList.OPCDA_PASSWORD_TEXT, (String) props.get("opcda.password.text"));
-        runner.setProperty(GetOPCDATagList.OPCDA_CLASS_ID_NAME, (String) props.get("opcda.class.id.name"));
-        runner.setProperty(GetOPCDATagState.READ_TIMEOUT_MS_ATTRIBUTE, (String) props.get("read.timeout.ms.attribute"));
-//        runner.setProperty(GetOPCDATagState.ENABLE_GROUP_CACHE, (String) props.get("enable.group.cache"));
-//        runner.setProperty(GetOPCDATagState.CACHE_REFRESH_INTERVAL, (String) props.get("group.cache.interval.ms"));
+        runner.setProperty(AsyncGetOPCDATagState.SERVER, (String) props.get("opcda.server.ip.name"));
+        runner.setProperty(AsyncGetOPCDATagState.WORKGROUP, (String) props.get("opcda.workgroup.name"));
+        runner.setProperty(AsyncGetOPCDATagState.USERNAME, (String) props.get("opcda.user.name"));
+        runner.setProperty(AsyncGetOPCDATagState.PASSWORD, (String) props.get("opcda.password.text"));
+        runner.setProperty(AsyncGetOPCDATagState.CLASS_ID, (String) props.get("opcda.class.id.name"));
+        runner.setProperty(AsyncGetOPCDATagState.POLL_INTERVAL, (String) props.get("group.cache.interval.ms"));
         runner.setProperty(GetOPCDATagState.OUTPUT_DELIMIITER, (String) props.get("output.delimiter"));
 
         Map<String, String> attributes1 = new HashMap<>();
@@ -122,10 +120,8 @@ public class GetOPCDATagStateTest {
         runner.setThreadCount(22);
         runner.run(40, true, true);
 
-        // runner.assertQueueEmpty();
-        flowFiles = runner.getFlowFilesForRelationship(GetOPCDATagState.REL_SUCCESS);
-        // runner.assertAllFlowFilesTransferred(QueryOPCDATagState.REL_SUCCESS, 4);
-        runner.assertTransferCount(GetOPCDATagState.REL_SUCCESS, 10);
+        flowFiles = runner.getFlowFilesForRelationship(AsyncGetOPCDATagState.REL_SUCCESS);
+        runner.assertTransferCount(AsyncGetOPCDATagState.REL_SUCCESS, 10);
         flowFiles.get(0).assertAttributeEquals("path", "target");
 
     }
