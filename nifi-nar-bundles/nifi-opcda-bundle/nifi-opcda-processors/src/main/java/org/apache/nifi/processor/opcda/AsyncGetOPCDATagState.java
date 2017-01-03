@@ -62,7 +62,9 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
 
     private volatile BlockingQueue<OPCDATag> stateQueue = new LinkedBlockingQueue<>();
 
-    private AccessBase access;
+    private volatile AccessBase access;
+
+    private volatile Collection<String> tags = new ArrayList<>();
 
     // PROPERTY DESCRIPTORS
     static final PropertyDescriptor SERVER = new PropertyDescriptor.Builder()
@@ -183,15 +185,14 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
     @OnScheduled
     public void onScheduled(final ProcessContext processContext, final ProcessSession processSession) throws DuplicateGroupException, NotConnectedException, JIException, UnknownHostException, AddFailedException {
         getLogger().info("esablishing connection from connection information derived from context");
-        FlowFile flowfile = processSession.create();
+        FlowFile flowFile = processSession.get();
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
         connection = getConnection(processContext);
         access = new Async20Access(connection, Integer.parseInt(processContext.getProperty(POLL_INTERVAL).getValue()), false);
-        Collection<String> tags = new ArrayList<>();
-        processSession.read(flowfile, (InputStream in) -> {
+        processSession.read(flowFile, (InputStream in) -> {
             if (tags.isEmpty()) tags.addAll(IOUtils.readLines(in, "UTF-8"));
         });
-        for (final String tag: tags) {
+        for (final String tag : tags) {
             getLogger().info("adding tag to access base: " + tag);
             access.addItem(tag, (item, itemState) -> {
                 getLogger().info("tag state change: " + item.getId());
@@ -211,8 +212,8 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
         getLogger().info("processor stopped");
     }
 
-    @On
-    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession, FlowFile flowfile) {
+    public void onTrigger(final ProcessContext processContext, final ProcessSession processSession) {
+        FlowFile flowFile = processSession.create();
         getLogger().info("[" + processContext.getName() + "]: triggered");
         final OPCDATag tag = stateQueue.poll();
         if (tag == null) {
@@ -222,8 +223,8 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
         }
 
         final String output = processTag(tag);
-        getLogger().debug("flowfile output: " + output);
-        flowfile = processSession.write(flowfile, (OutputStream stream) -> {
+        getLogger().debug("flowFile output: " + output);
+        flowFile = processSession.write(flowFile, (OutputStream stream) -> {
             try {
                 stream.write(output.getBytes("UTF-8"));
                 stateQueue.remove(tag);
@@ -231,8 +232,8 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
                 e.printStackTrace();
             }
         });
-        processSession.transfer(flowfile, REL_SUCCESS);
-        processSession.getProvenanceReporter().receive(flowfile, connection.getConnectionInformation().getHost());
+        processSession.transfer(flowFile, REL_SUCCESS);
+        processSession.getProvenanceReporter().receive(flowFile, connection.getConnectionInformation().getHost());
     }
 
     private String processTag(final OPCDATag tag) {
