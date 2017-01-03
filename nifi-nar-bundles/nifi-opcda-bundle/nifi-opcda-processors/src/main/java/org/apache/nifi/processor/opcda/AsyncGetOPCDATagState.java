@@ -185,10 +185,11 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
     @OnScheduled
     public void onScheduled(final ProcessContext processContext, final ProcessSession processSession) throws DuplicateGroupException, NotConnectedException, JIException, UnknownHostException, AddFailedException {
         getLogger().info("esablishing connection from connection information derived from context");
-        FlowFile flowFile = processSession.get();
         DELIMITER = processContext.getProperty(OUTPUT_DELIMIITER).getValue();
         connection = getConnection(processContext);
         access = new Async20Access(connection, Integer.parseInt(processContext.getProperty(POLL_INTERVAL).getValue()), false);
+
+        FlowFile flowFile = processSession.get();
         processSession.read(flowFile, (InputStream in) -> {
             if (tags.isEmpty()) tags.addAll(IOUtils.readLines(in, "UTF-8"));
         });
