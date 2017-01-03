@@ -211,6 +211,7 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
         getLogger().info("processor stopped");
     }
 
+    @On
     public void onTrigger(final ProcessContext processContext, final ProcessSession processSession, FlowFile flowfile) {
         getLogger().info("[" + processContext.getName() + "]: triggered");
         final OPCDATag tag = stateQueue.poll();
