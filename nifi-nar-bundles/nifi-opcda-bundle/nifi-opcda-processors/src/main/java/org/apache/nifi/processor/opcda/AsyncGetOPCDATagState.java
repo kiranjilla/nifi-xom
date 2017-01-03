@@ -23,6 +23,7 @@
 package org.apache.nifi.processor.opcda;
 
 import org.apache.commons.io.IOUtils;
+
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
@@ -36,7 +37,9 @@ import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.*;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.opcda.OPCDAItemStateValueMapper;
+
 import org.jinterop.dcom.common.JIException;
+
 import org.openscada.opc.lib.common.ConnectionInformation;
 import org.openscada.opc.lib.common.NotConnectedException;
 import org.openscada.opc.lib.da.*;
