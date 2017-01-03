@@ -236,8 +236,12 @@ public class AsyncGetOPCDATagState extends AbstractProcessor {
                 e.printStackTrace();
             }
         });
-        processSession.transfer(flowFile, REL_SUCCESS);
-        processSession.getProvenanceReporter().receive(flowFile, connection.getConnectionInformation().getHost());
+        if (flowFile != null) {
+            processSession.transfer(flowFile, REL_SUCCESS);
+            processSession.getProvenanceReporter().receive(flowFile, connection.getConnectionInformation().getHost());
+        } else {
+            processSession.transfer(flowFile, REL_FAILURE);
+        }
     }
 
     private String processTag(final OPCDATag tag) {
