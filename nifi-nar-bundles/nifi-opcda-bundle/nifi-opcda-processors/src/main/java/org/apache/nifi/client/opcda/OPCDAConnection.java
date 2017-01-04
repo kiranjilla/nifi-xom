@@ -19,15 +19,15 @@
 
 package org.apache.nifi.client.opcda;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import org.openscada.opc.lib.common.ConnectionInformation;
-import org.openscada.opc.lib.da.*;
-
-import java.sql.Connection;
-import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Logger;
+
+import org.openscada.opc.lib.common.ConnectionInformation;
+import org.openscada.opc.lib.da.AccessBase;
+import org.openscada.opc.lib.da.Server;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode
